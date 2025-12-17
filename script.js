@@ -1701,7 +1701,8 @@ async function doExecution(id) {
   state.dayIndex++;
 
   if (state.dayIndex >= state.totalWeeks * 7) {
-    endSimulation();
+    const alive = aliveChars();
+    showEnding(alive.length > 0);
     return;
   }
 
@@ -1744,11 +1745,40 @@ function showEnding(success) {
   showScreen("#screen-ending");
 
   const box = $("#screen-ending .ending-box");
-  if (box) {
-    box.innerHTML = success
-      ? `<h1>SIMULATION ENDED</h1><p>무사히 이 세상을 탈출했다.</p><button class="btn-restart btn-primary">시스템 리부트</button>`
-      : `<h1>BAD ENDING</h1><p>세상밖에 다시 도달한 자는 없었다. 마치 현실같고 꿈같던 것. 어느 경계선일까.</p><button class="btn-restart btn-primary">시스템 리부트</button>`;
+  if (!box) return;
+
+  if (success) {
+    const survivors = aliveChars(); // 살아남은 애들
+    const listHtml = survivors.length
+      ? `<ul class="survivor-list">
+          ${survivors.map(c => `
+            <li>
+              <b>${esc(c.name)}</b>
+              <span class="meta">(${esc(TAG_LABEL[c.tagKey] || c.tagKey)} / TRUST ${c.trust >= 0 ? "+"+c.trust : c.trust} / SAN ${c.san})</span>
+            </li>
+          `).join("")}
+        </ul>`
+      : `<p class="muted">생존자 데이터가 확인되지 않습니다.</p>`;
+
+    box.innerHTML = `
+      <h1>ESCAPE SUCCESS</h1>
+      <p>무사히 이 세상을 탈출했다.</p>
+
+      <div class="survivor-box">
+        <h3>탈출 성공 명단</h3>
+        ${listHtml}
+      </div>
+
+      <button class="btn-restart btn-primary">시스템 리부트</button>
+    `;
+  } else {
+    box.innerHTML = `
+      <h1>BAD ENDING</h1>
+      <p>세상밖에 다시 도달한 자는 없었다. 마치 현실같고 꿈같던 것. 어느 경계선일까.</p>
+      <button class="btn-restart btn-primary">시스템 리부트</button>
+    `;
   }
+
 
   $("#screen-ending .btn-restart")?.addEventListener("click", restartAll);
 }
@@ -1789,4 +1819,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupCreationUI();
   setupGameButtons();
   showScreen("#screen-intro");
+
 });
