@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survival Simulation : RED</title>
+   
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 🟥 Screen 1. 인트로 (더 어둡고 위험하게) -->
+    <section id="screen-intro" class="screen active">
+        <div class="intro-overlay"></div> 
+        <div class="intro-container">
+            <h1 class="title glitched">Neapolitan Dream</h1>
+            <p class="subtitle">"Neapolitan? Simulation?"</p>
+            
+            <div class="warning-box">
+                ⚠️ WARNING ⚠️<br>
+                본 시뮬레이션은 사망, 살해, 폭력등 위험한 요소들이 담겨있습니다<br>
+                15세 이상 플레이를 권장하며, 각종 트리거 문장이 존재하니<br>
+                이점 참고 부탁드립니다.
+            </div>
+
+            <button id="btn-start" class="btn-danger-outline">접속 승인</button>
+        </div>
+    </section>
+
+    <!-- 🟥 Screen 2. 캐릭터 생성 -->
+    <section id="screen-creation" class="screen">
+        <header class="screen-header">
+            <h2>참가자 데이터 입력</h2>
+        </header>
+        <div class="creation-layout">
+         
+            <div class="input-panel">
+                <div class="form-group">
+                    <label>CODENAME (이름)</label>
+                    <input type="text" id="input-name" placeholder="이름 입력">
+                </div>
+                
+                <div class="form-group">
+                    <label>INTELLIGENCE (지능)</label>
+                    <div class="slider-box">
+                        <input type="range" id="input-int" min="1" max="10" value="5">
+                        <span id="display-int" class="stat-value">5</span>
+                    </div>
+                </div>
+
+             
+                <div class="form-group">
+                    <label>SANITY (정신력)</label>
+                    <div class="slider-box">
+                        <input type="range" id="input-sanity" min="0" max="10" value="70">
+                        <span id="display-sanity" class="stat-value">10</span>
+                    </div>
+                </div>
+               
+
+                <div class="form-group">
+                    <label>PERSONALITY (성격)</label>
+                    <div class="tag-group">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>LUCK (랜덤)</label>
+                    <div class="luck-display">UNKNOWN</div>
+                </div>
+
+                <button id="btn-add-char" class="btn-primary full-width">데이터 등록</button>
+                <div class="data-io-group">
+                <button id="btn-export" class="btn-io">DATA SAVE (내보내기)</button>
+                <button id="btn-import" class="btn-io">DATA LOAD (불러오기)</button>
+               
+                <input type="file" id="file-input" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            
+            <div class="list-panel">
+                <h3>등록된 인원 현황</h3>
+                <div class="char-list-grid">
+                    
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-to-relation" class="btn-next-step">관계 설정 단계로 이동</button>
+    </section>
+
+    <!-- 🟥 Screen 3. 관계 설정 (매트릭스 테이블 형태) -->
+    <section id="screen-relation" class="screen">
+        <header class="screen-header">
+            <h2>상호 관계도 설정</h2>
+            <p class="info-text">모든 인물 간의 관계를 한 번에 정의하십시오.</p>
+        </header>
+
+        <div class="matrix-container">
+            <table class="relation-table">
+                <thead>
+                    <tr>
+                        <th>주체 \ 대상</th>
+                       
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <button id="btn-start-game" class="btn-danger-fill full-width">시뮬레이션 가동</button>
+    </section>
+
+    <!-- 🟥 Screen 4. 메인 게임 화면 -->
+    <section id="screen-game" class="screen">
+        <header class="game-header">
+            <div class="header-left">
+                <span class="live-indicator">● LIVE</span>
+                <span id="game-day">DAY 1 : 월요일</span>
+            </div>
+            <button id="btn-next-day" class="btn-turn">NEXT DAY >></button>
+        </header>
+
+        <div class="game-layout">
+            <!-- 왼쪽: 시스템 로그 (애니메이션 적용) -->
+            <aside class="console-panel">
+                <div class="panel-title">SYSTEM_LOG.exe</div>
+                <div class="console-content" id="console-log">
+                    <!-- 예시: 순차적으로 뜨는 느낌을 위해 style로 딜레이를 줌 (JS에서 제어 가능) -->
+                    <p class="log system" style="animation-delay: 0s">>> [SYSTEM] 시뮬레이션 로드 완료.</p>
+                    <p class="log system" style="animation-delay: 0.5s">>> [SYSTEM] 참가자 생체 신호 동기화...</p>
+                    <p class="log event" style="animation-delay: 1.0s">>> 현재 시각 09:00. 외부 통신 단절됨.</p>
+                    <p class="log warning" style="animation-delay: 1.5s">>> 경고: 정신력 수치가 불안정한 개체가 감지됩니다.</p>
+                    <div class="log-cursor">_</div> <!-- 깜빡이는 커서 -->
+                </div>
+            </aside>
+
+            <!-- 오른쪽: 메인 뷰 -->
+            <main class="display-panel">
+                <div class="view-toggles">
+                    <button class="toggle-btn active" onclick="switchView('cards')">STATUS (상태)</button>
+                    <button class="toggle-btn" onclick="switchView('loc')">LOCATION (위치)</button>
+                </div>
+
+                <!-- 1. 생존자 카드 그리드 -->
+                <div id="view-cards" class="content-view active">
+                    <div class="card-grid">
+                        
+                        <div class="char-card">
+                            <div class="card-top">
+                            </div>
+                            
+                            <div class="card-stats-area">
+                                <div class="stat-row">
+                                    <div class="stat-label">HP</div>
+                                    <div class="gauge-bg">
+                                        <div class="gauge hp" style="width: 100%"></div>
+                                    </div>
+                                    <div class="stat-val">100</div>
+                                </div>
+                                <!-- 2. SAN (Bar) -->
+                                <div class="stat-row">
+                                    <div class="stat-label">SAN</div>
+                                    <div class="gauge-bg">
+                                        <div class="gauge sanity" style="width: 60%"></div>
+                                    </div>
+                                    <div class="stat-val">60</div>
+                                </div>
+                                <!-- 3. TRUST (Number Only) -->
+                                <div class="trust-row">
+                                    <span class="stat-label">신뢰도</span>
+                                    <span class="trust-val negative">-15</span> 
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="char-card status-dead">
+                            <div class="card-top">
+                            </div>
+                            <div class="card-stats-area">
+                                <div class="dead-msg">SIGNAL LOST</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="view-loc" class="content-view" style="display: none;">
+                </div>
+
+            </main>
+        </div>
+    </section>
+
+    <!-- 🟥 Screen 5. 일요일 (처형) -->
+    <section id="screen-execution" class="screen theme-blood">
+        <div class="exec-content">
+            <h1 class="blood-title">JUDGMENT DAY</h1>
+            <p>투표 결과, 제거 대상이 선정되었습니다.</p>
+            <div class="target-display">
+                
+                <span class="target-name">???</span>
+            </div>
+            <button class="btn-kill">처형 집행</button>
+        </div>
+    </section>
+
+    <!-- 🟥 Screen 6. 엔딩 -->
+    <section id="screen-ending" class="screen">
+        <div class="ending-box">
+            <h1>BAD ENDING</h1>
+            <p>전원 사망하였습니다.</p>
+            <button class="btn-restart">시스템 리부트</button>
+        </div>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,422 @@
+/* =========================================
+   1. ROOT VARIABLES & RESET
+   ========================================= */
+:root {
+   
+    --bg-main: #050505;      
+    --bg-panel: #111111;    
+    --bg-input: #1a1a1a;
+    
+    --text-color: #d1d1d1;   
+    --text-muted: #666666;
+    
+    --accent-red: #bb0a1e;   
+    --accent-glow: #ff0000;  
+    --border-color: #333333;
+    
+    --font-serif: 'Crimson Text', serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Noto Sans KR', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-color);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+}
+
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-red); }
+
+
+/* =========================================
+   2. UTILITY & COMMON
+   ========================================= */
+.screen {
+    display: none;
+    width: 100%; height: 100%;
+    position: relative;
+    padding: 20px;
+    background: radial-gradient(circle at center, #111 0%, #000 100%);
+}
+.screen.active { display: flex; flex-direction: column; }
+
+button {
+    cursor: pointer; transition: 0.3s;
+    font-family: var(--font-mono); font-weight: bold;
+    border: 1px solid var(--border-color);
+}
+
+.full-width { width: 100%; margin-top: 10px; }
+
+/* 버튼 스타일 */
+.btn-primary {
+    background: #222; color: #fff; border: 1px solid var(--accent-red);
+}
+.btn-primary:hover { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
+
+.btn-danger-outline {
+    background: transparent; color: var(--accent-red); border: 1px solid var(--accent-red);
+    padding: 15px 40px; font-size: 1.2rem; letter-spacing: 2px;
+}
+.btn-danger-outline:hover {
+    background: var(--accent-red); color: #000; box-shadow: 0 0 20px var(--accent-red);
+}
+
+.btn-danger-fill {
+    background: var(--accent-red); color: #000; border: none; padding: 15px; font-size: 1.1rem;
+}
+
+.btn-turn {
+    background: #000; color: var(--accent-red); border: 1px solid var(--accent-red);
+    padding: 5px 15px; font-family: var(--font-mono);
+}
+.btn-turn:hover { background: var(--accent-red); color: #000; }
+/* --- JSON Data IO Buttons --- */
+.data-io-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    border-top: 1px dashed #333;
+    padding-top: 15px;
+}
+
+.btn-io {
+    flex: 1;
+    background: #111;
+    color: #888;
+    border: 1px solid #444;
+    padding: 10px;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+}
+
+.btn-io:hover {
+    background: #222;
+    color: #fff;
+    border-color: #fff;
+}
+
+/* =========================================
+   3. CUSTOM SLIDER (지능/정신력 토글)
+   ========================================= */
+input[type="range"] {
+    -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0;
+}
+input[type="range"]:focus { outline: none; }
+
+/* 트랙 */
+input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%; height: 6px; cursor: pointer;
+    background: #000; border: 1px solid #333; border-radius: 2px;
+}
+input[type="range"]::-moz-range-track {
+    width: 100%; height: 6px; cursor: pointer;
+    background: #000; border: 1px solid #333; border-radius: 2px;
+}
+
+/* 썸 (붉은색 버튼) */
+input[type="range"]::-webkit-slider-thumb {
+    height: 18px; width: 18px; border-radius: 50%;
+    background: var(--accent-red); cursor: pointer;
+    -webkit-appearance: none; margin-top: -7px;
+    box-shadow: 0 0 5px var(--accent-red);
+    transition: transform 0.1s ease;
+}
+input[type="range"]::-moz-range-thumb {
+    height: 18px; width: 18px; border: none; border-radius: 50%;
+    background: var(--accent-red); cursor: pointer;
+    box-shadow: 0 0 5px var(--accent-red);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2); box-shadow: 0 0 10px var(--accent-glow);
+}
+
+
+/* =========================================
+   4. SCREENS UI
+   ========================================= */
+
+/* --- Screen 1: Intro --- */
+#screen-intro {
+    justify-content: center; align-items: center; text-align: center;
+}
+.title.glitched {
+    font-family: var(--font-mono); font-size: 4rem; color: var(--accent-red);
+    text-shadow: 2px 2px 0px #000, -1px -1px 0 #333;
+    margin-bottom: 10px;
+}
+.warning-box {
+    border: 1px solid var(--accent-red); color: var(--accent-red);
+    padding: 20px; margin: 40px 0; background: rgba(187, 10, 30, 0.1);
+    font-family: var(--font-mono);
+}
+
+/* --- Screen 2: Creation --- */
+.creation-layout {
+    display: flex; gap: 20px; flex: 1; overflow: hidden;
+}
+.input-panel {
+    width: 350px; background: var(--bg-panel); padding: 20px;
+    border: 1px solid var(--border-color); overflow-y: auto;
+}
+.list-panel {
+    flex: 1; background: var(--bg-panel); padding: 20px;
+    border: 1px solid var(--border-color); display: flex; flex-direction: column;
+}
+
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; color: var(--accent-red); font-size: 0.8rem; margin-bottom: 5px; }
+.slider-box { display: flex; align-items: center; gap: 10px; }
+.stat-value { font-family: var(--font-mono); width: 30px; text-align: right; color: #fff; }
+
+input[type="text"] {
+    width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 8px;
+}
+.tag-group { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag-btn {
+    background: #000; color: #666; border: 1px solid #333; padding: 5px 10px; font-size: 0.8rem;
+}
+.tag-btn:hover, .tag-btn.selected {
+    border-color: var(--accent-red); color: #fff;
+}
+
+/* 미니 카드 (생성 목록용) */
+.char-list-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px; margin-top: 15px; overflow-y: auto;
+}
+.mini-card {
+    background: #000; border: 1px solid #444; padding: 10px; position: relative;
+}
+.mc-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.mc-name { color: #fff; font-weight: bold; }
+.mc-tag { font-size: 0.7rem; color: var(--accent-red); border: 1px solid var(--accent-red); padding: 0 4px; }
+.mc-stats { font-size: 0.75rem; color: #888; display: flex; flex-direction: column; }
+.btn-delete {
+    position: absolute; top: -5px; right: -5px; background: var(--accent-red);
+    color: #fff; width: 20px; height: 20px; line-height: 18px; text-align: center; border: none;
+}
+.btn-next-step {
+    width: 100%; padding: 15px; margin-top: 20px;
+    background: #222; color: #fff; border-top: 2px solid var(--accent-red);
+}
+
+
+/* --- Screen 3: Relation Matrix --- */
+.matrix-container {
+    flex: 1; overflow: auto; background: var(--bg-panel);
+    border: 1px solid var(--border-color); margin: 20px 0; padding: 10px;
+}
+.relation-table {
+    width: 100%; border-collapse: collapse; min-width: 600px;
+}
+.relation-table th, .relation-table td {
+    border: 1px solid #333; padding: 10px; text-align: center;
+    color: #aaa; font-size: 0.9rem;
+}
+.relation-table th { background: #000; color: var(--accent-red); position: sticky; top: 0; z-index: 10; }
+.relation-table .fixed-col { background: #000; font-weight: bold; color: #fff; position: sticky; left: 0; }
+.relation-table select {
+    background: #111; color: #fff; border: 1px solid #444; width: 100%; padding: 5px;
+}
+.relation-table .disabled { background: #080808; color: #333; }
+
+
+/* --- Screen 4: Game Main --- */
+.game-header {
+    height: 50px; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border-color); padding: 0 10px;
+}
+.live-indicator { color: red; animation: blink 1s infinite; font-size: 0.8rem; margin-right: 10px; }
+@keyframes blink { 50% { opacity: 0.3; } }
+
+.game-layout { display: flex; height: calc(100vh - 70px); }
+
+/* (1) 왼쪽: 콘솔 패널 + 애니메이션 */
+.console-panel {
+    width: 300px; background: #000; border-right: 1px solid #333;
+    display: flex; flex-direction: column;
+}
+.panel-title { padding: 10px; background: #080808; color: #555; font-size: 0.8rem; border-bottom: 1px solid #333; }
+.console-content { 
+    flex: 1; padding: 15px; overflow-y: auto; 
+    font-family: var(--font-mono); font-size: 0.85rem;
+    display: flex; flex-direction: column;
+}
+
+/* 콘솔 페이드인 & 타자기 효과 */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.log {
+    margin-bottom: 8px; line-height: 1.4; opacity: 0;
+    animation: fadeInUp 0.5s ease forwards;
+    border-left: 2px solid transparent; padding-left: 5px;
+}
+.log.warning { border-left-color: var(--accent-red); color: #ff4444; }
+.log.event { color: #fff; }
+.log.system { color: #666; }
+.log-cursor { color: var(--accent-red); animation: blinkCursor 1s infinite; }
+@keyframes blinkCursor { 50% { opacity: 0; } }
+
+/* (2) 오른쪽: 디스플레이 패널 */
+.display-panel { flex: 1; background: var(--bg-panel); padding: 20px; display: flex; flex-direction: column; }
+
+.view-toggles { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+.toggle-btn {
+    background: transparent; color: #666; border: none; font-size: 0.9rem; padding: 5px 10px;
+}
+.toggle-btn.active { color: var(--accent-red); border-bottom: 2px solid var(--accent-red); }
+
+.content-view { display: none; flex: 1; overflow-y: auto; }
+.content-view.active { display: block; }
+
+/* 🃏 캐릭터 카드 (게임 중) */
+.card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+.char-card {
+    background: #151515; border: 1px solid #333; padding: 15px;
+    transition: all 0.3s;
+}
+.char-card:hover { border-color: #666; }
+
+.card-top { display: flex; justify-content: space-between; margin-bottom: 15px; }
+.card-top .name { font-size: 1.1rem; font-weight: bold; color: #eee; }
+.card-top .badge { font-size: 0.7rem; background: #222; padding: 2px 6px; color: #888; }
+
+/* 스탯 영역 (HP, SAN, TRUST) */
+.card-stats-area { display: flex; flex-direction: column; gap: 8px; }
+.stat-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
+.stat-label { width: 40px; font-weight: bold; color: #888; }
+.gauge-bg {
+    flex: 1; height: 6px; background: #222; margin: 0 8px;
+    border-radius: 2px; overflow: hidden;
+}
+.gauge { height: 100%; transition: width 0.5s; }
+.gauge.hp { background: #d32f2f; box-shadow: 0 0 5px #d32f2f; }
+.gauge.sanity { background: #5e35b1; box-shadow: 0 0 5px #5e35b1; }
+.stat-val { font-family: var(--font-mono); color: #ccc; width: 30px; text-align: right; }
+
+.trust-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 5px; padding-top: 5px; border-top: 1px dashed #333;
+}
+.trust-val { font-family: var(--font-mono); font-size: 1.1rem; font-weight: bold; }
+.trust-val.positive { color: #4caf50; }
+.trust-val.negative { color: #ff5252; }
+
+/* 사망 상태 (흑백 + 어둡게) */
+.char-card.status-dead {
+    filter: grayscale(100%) brightness(0.4);
+    border: 1px solid #222; opacity: 0.7;
+}
+.char-card.status-dead .card-top .badge { background: #fff; color: #000; font-weight: bold; }
+
+/* 위치 터미널 (아스키 아트 스타일) */
+.location-terminal {
+    font-family: var(--font-mono); color: #aaa; line-height: 1.8;
+}
+.floor-group { margin-bottom: 25px; }
+.floor-title {
+    color: var(--accent-red); font-weight: bold;
+    border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 2px;
+}
+.room-line { display: flex; align-items: center; padding: 5px 0; }
+.room-line:hover { background: #111; }
+.room-name { width: 120px; color: #ddd; }
+.room-name.warning { color: red; font-weight: bold; }
+.room-path { color: #444; margin-right: 15px; letter-spacing: -2px; }
+.char-icon {
+    background: #222; color: #fff; padding: 2px 6px; margin-right: 5px;
+    border: 1px solid #555; font-size: 0.8rem; cursor: default;
+}
+.char-icon:hover { border-color: var(--accent-red); color: var(--accent-red); }
+.empty-spot { color: #333; font-size: 0.8rem; }
+
+
+/* --- Screen 5: Execution --- */
+.theme-blood {
+    background: #300000; /* 피 배경 */
+    justify-content: center; align-items: center; text-align: center;
+}
+.blood-title {
+    font-size: 3rem; color: #fff; font-family: var(--font-serif);
+    text-transform: uppercase; letter-spacing: 5px;
+}
+.target-name {
+    display: block; font-size: 2.5rem; color: #000; background: var(--accent-red);
+    padding: 10px 30px; margin: 30px auto; width: fit-content; font-weight: bold;
+    transform: rotate(-2deg);
+}
+
+/* --- Screen 6: Ending --- */
+#screen-ending {
+    justify-content: center; align-items: center; text-align: center;
+}
+.ending-box h1 { color: var(--accent-red); font-size: 3rem; margin-bottom: 20px; }
+/* 콘솔 내 선택지 그룹 */
+.console-choice-group {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start; /* 왼쪽 정렬 */
+  animation: fadeIn 0.3s ease;
+}
+
+/* 콘솔 내 버튼 스타일 */
+.console-btn {
+  background: transparent;
+  border: 1px solid #bb0a1e; /* 붉은 테두리 */
+  color: #bb0a1e;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.console-btn:hover {
+  background: #bb0a1e;
+  color: #000;
+  box-shadow: 0 0 8px #bb0a1e;
+}
+
+/* 유저가 선택한 후 남는 로그 기록용 */
+.log.user-action {
+  color: #00ff00; /* 초록색 등 눈에 띄는 색 */
+  font-weight: bold;
+  margin-top: 4px;
+  border-left: 2px solid #00ff00;
+  padding-left: 8px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   5. RESPONSIVE
+   ========================================= */
+@media (max-width: 768px) {
+    .creation-layout { flex-direction: column; }
+    .input-panel { width: 100%; max-height: 40vh; }
+    
+    .game-layout { flex-direction: column; }
+    .console-panel { width: 100%; height: 30%; border-right: none; border-bottom: 1px solid #333; }
+    .display-panel { height: 70%; }
+}
