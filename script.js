@@ -1004,7 +1004,7 @@ async function eventLivingRoomSky(c) {
 
     const ans = await askChoice({
       title: "[WARNING]",
-      body: `뒤돌아 확인하겠습니까?\n(권장하지 않습니다)`,
+      body: `뒤돌아 확인하겠습니까?`,
       options: [
         { label: "무시한다", value: "ignore" },
         { label: "확인한다", value: "check" },
@@ -1155,7 +1155,7 @@ async function eventFakeCaretakerOn2F(c) {
 
   const ans = await askChoice({
     title: "[WARNING]",
-    body: `어떻게 하시겠습니까?`,
+    body: `${c.name}은/는 어떻게 하시겠습니까?`,
     options: [
       { label: "1층 잔디밭으로 돌아간다", value: "run" },
       { label: "말을 건다", value: "look" },
@@ -1165,7 +1165,7 @@ async function eventFakeCaretakerOn2F(c) {
   if (ans === "look") {
     applySanLoss(c, 26);
     applyTrust(c, -8);
-    logLine(`>> [SYSTEM] …그것은 당신을 인식했다.`, "warning");
+    logLine(`>> [SYSTEM] …그것은 ${c.name}을/를 인식했다.`, "warning");
   }
 
 
@@ -1821,4 +1821,5 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
