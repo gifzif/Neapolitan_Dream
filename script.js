@@ -2051,7 +2051,7 @@ async function eventPostMoveUnease(group, target) {
   });
 
   if (ans === "yes") {
-    await logGlitchLine(">>", `그것은 당신의 착각이야. 모든 말을 믿지 마.`, "system", 0.30);
+    await logGlitchLine(">>", `그것은 당신의 착각이야. 모든 말을 믿지 마.`, "system", 0.80);
       
     applySanLoss(speaker, 22);
     applyTrust(speaker, -6);
@@ -2533,7 +2533,6 @@ async function choiceKnock(c) {
     return;
   }
 
-  // ✅ 3회: 기존 루트 유지
   if (ans === 3) {
     logLine(`[ADMIN] "…들어오세요."`, "system");
     const good = chance(0.55 + (c.luckScore / 100) * 0.2);
@@ -2863,13 +2862,13 @@ async function maybeSwapExecutionTarget(target) {
 async function doExecution(id) {
   let target = state.chars.find(c => c.id === id);
   if (!target || !target.alive) return;
-  target = await maybeSwapExecutionTarget(target);
 
+  target = await maybeSwapExecutionTarget(target);
 
   const nameEl = document.querySelector("#screen-execution .target-name");
   if (nameEl) nameEl.textContent = target.name;
-  const soft = (state.initialCount ?? aliveChars().length) <= 5; 
 
+  const soft = (state.initialCount ?? aliveChars().length) <= 5;
 
   logLine(`>> [SYSTEM] 처형(또는 소멸) 집행 직전…`, "warning");
   await sleep(250);
@@ -2877,8 +2876,7 @@ async function doExecution(id) {
   if (soft) {
     logLine(`[ADMIN] "걱정하지 마십시오, 당신의 신체 일부만 소멸됩니다."`, "warning");
     await removeRandomBodyPart(target, { hpDmg: 20, sanAmt: 10, reason: "절단" });
-    return;
-
+ 
   } else {
     logLine(pickLastWords(target), "event");
     await sleep(1000);
@@ -2887,8 +2885,6 @@ async function doExecution(id) {
     target.deathType = "execution";
     logLine(`>> [SYSTEM] ${target.name}의 모습은 더이상 볼 수 없었습니다.`, "warning");
   }
-
-
   state.dayIndex++;
 
   if (state.dayIndex >= state.totalWeeks * 7) {
@@ -2898,7 +2894,6 @@ async function doExecution(id) {
   }
 
   showScreen("#screen-game");
-  
 
   const btn = $("#btn-next-day");
   if (btn) btn.disabled = false;
@@ -3012,4 +3007,5 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
