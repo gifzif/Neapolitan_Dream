@@ -1685,9 +1685,8 @@ async function eventRoofMerchant(c) {
     }
 
     const map = {
-      leftArm:   ["leftArm","leftElbow","leftHand","leftWrist"],
-      rightArm:  ["rightArm","rightElbow","rightHand","rightWrist"],
-      rightWrist:["rightWrist","rightHand"],
+      leftArm: ["leftHand","leftWrist"],
+      rightArm:["rightHand","rightWrist"],
     };
 
     const part = pickExistingPart(c, map[ans] ?? ["leftHand","rightHand"]);
@@ -3363,6 +3362,7 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
 
 
