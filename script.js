@@ -1131,7 +1131,7 @@ async function tickBreakups() {
     logLine(`${leaver.name}: "당신 뭐야, 나를 어떻게 아는 거야? 너도 한패지?"`, "event");
     logLine(`${other.name}: "뭐? 지금 그게 무슨—"`, "event");
     await sleep(120);
-    logLine(`>> [SYSTEM] 관계 데이터가 붕괴합니다.`, "warning");
+    logLine(`>> [SYSTEM] 관계 데이터가 붕괴합니다.(일방적 관계 단절)`, "warning");
 
     setDynamicRelBoth(leaver.id, other.id, "ex");
     applySanLoss(other, 25);
@@ -1140,7 +1140,7 @@ async function tickBreakups() {
     return;
   }
 
-  // 정상 이별
+
   logLine(`${a.name}: "우리… 그만하자."`, "event");
   logLine(`${b.name}: "…그래. 여기선 다 의미 없지."`, "event");
   logLine(`>> [SYSTEM] 두 사람 사이의 관계가 파열되었습니다.`, "warning");
@@ -1150,6 +1150,20 @@ async function tickBreakups() {
   applySanLoss(b, 20);
   applyTrust(a, -8);
   applyTrust(b, -8);
+  if (b.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
+  if (a.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
 }
 
 
@@ -1166,6 +1180,13 @@ function tickAfterOutside() {
       if (c.afterOutsideDays === 0) {
         logLine(`${c.name}: …(알 수 없는 말을 중얼거린다)`, "warning");
         applySanLoss(c, 18);
+        if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
       }
     }
   }
@@ -1213,6 +1234,14 @@ async function removeBodyPart(c, partKey, { hpDmg = 20, sanAmt = 10, reason = "�
   applyBodyCascade(b, partKey);
   c.hp = clamp(c.hp - hpDmg, 0, 100);
   applySanLoss(c, sanAmt);
+  if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
+  
 
   const label = BODY_LABEL[partKey] || partKey;
   await logGlitchLine(">>", `${c.name}의 ${label} 이/가 ${reason}되었습니다`, "warning", 0.32);
@@ -1312,9 +1341,22 @@ async function eventRumor() {
     const loss = 6 + Math.floor(Math.random() * 8); 
     applyTrust(target, -loss);
     applySanLoss(target, 6);
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
 
     logLine(`>> [SYSTEM] ${target.name}에 대한 소문이 퍼졌다. (TRUST -${loss})`, "warning");
-
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     
     applyTrust(spreader, +2);
     return;
@@ -1328,13 +1370,26 @@ async function eventRumor() {
 
     logLine(`>> [SYSTEM] 거짓말이 들켰다. ${spreader.name}의 신뢰가 무너진다. (TRUST -${penalty})`, "warning");
 
-    
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     applyTrust(target, +3);
     return;
   }
 
   logLine(`>> [SYSTEM] 소문은 퍼지지 않았다. 하지만 찝찝함은 남는다.`, "system");
   applySanLoss(spreader, 4);
+  if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
 }
 
 function tickSanityStages() {
@@ -1424,6 +1479,13 @@ async function enter_any_1f(c) {
   } else {
     applySanLoss(c, 6);
     logLine(`>> [SYSTEM] ${c.name}은(는) 시선을 피했다.`, "system");
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
   }
 }
 
@@ -1481,6 +1543,13 @@ async function eventBlackDoorOnRoof(c) {
     applySanLoss(c, 10);
     applyTrust(c, -3);
     logLine(`>> [SYSTEM] ${c.name}은(는) 문에서 시선을 떼었다.`, "warning");
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     return;
   }
 
@@ -1523,10 +1592,24 @@ async function eventLivingRoomSky(c) {
       if (part) await removeBodyPart(c, part, { hpDmg: 18, sanAmt: 14, reason: "소멸" });
       applySanLoss(c, 90);
       applyTrust(c, -8);
+      if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
 
     } else {
       applySanLoss(c, 2);
       applyTrust(c, 0);
+      if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     }
     return;
   }
@@ -1546,6 +1629,13 @@ async function eventLivingRoomSky(c) {
   if (ans2 === "away") {
     logLine(`${c.name}: "…안 봐."`, "system");
     applySanLoss(c, 6);
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     return;
   }
 
@@ -1571,9 +1661,23 @@ async function eventLivingRoomSky(c) {
       await logGlitchLine("??? : ", `무너질거야. 계속, 또 계속`, "system", 0.80);
       logLine(`>> [SYSTEM] ${c.name}의 정신력은 그것을 감당하지 못합니다.`, "warning");
       applySanLoss(c, 40);
+      if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
       applyTrust(c, -10);
     } else {
       applySanLoss(c, 12);
+      if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     }
   } else {
     logLine(`>> [SYSTEM] 검은 옷을 입은 누군가가 ${c.name}에게 말을 건다.`, "event");
@@ -1596,6 +1700,13 @@ async function eventLivingRoomSky(c) {
       applyTrust(c, +6);
     } else {
       applySanLoss(c, 8);
+      if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     }
   }
 }
@@ -1661,6 +1772,13 @@ async function eventCaretakerOn1F(c) {
     applySanLoss(c, 8);
     applyTrust(c, -2);
     logLine(`>> [SYSTEM] ${c.name}은(는) 시선을 피했다.`, "system");
+    if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      return;
+    }
     return;
   }
 
@@ -2662,7 +2780,7 @@ async function choiceRoofPlant(c) {
 
   logLine(`>> [SYSTEM] ${c.name}이(가) 식물에 닿았습니다.`, "warning");
 
-  if (chance(0.35)) {
+  if (chance(0.95)) {
     c.alive = false;
     c.deathType = "missing";
     logLine(`>> [SYSTEM] ${c.name}은(는) 식물 아래로 끌려가 사라졌습니다. (실종)`, "warning");
