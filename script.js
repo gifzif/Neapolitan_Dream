@@ -1013,11 +1013,11 @@ async function eventLivingRoomSky(c) {
 
     if (ans === "check") {
       logLine(`>> [SYSTEM] ${c.name}은(는) '확인'해버렸습니다.`, "warning");
-      applySanLoss(c, 28);
+      applySanLoss(c, 90);
       applyTrust(c, -8);
     } else {
-      applySanLoss(c, 10);
-      applyTrust(c, -2);
+      applySanLoss(c, 2);
+      applyTrust(c, 0);
     }
     return;
   }
@@ -1074,7 +1074,7 @@ async function eventLivingRoomSky(c) {
     });
 
     if (ans4 === "empathize") {
-      logLine(`>> [SYSTEM] ${c.name}의 정신력이 치유되었습니다.`, "event");
+      logLine(`>> [SYSTEM] ${c.name}는 어째선지 기분이 좋아졌습니다.`, "event");
       applySanHeal(c, 18);
       applyTrust(c, +6);
     } else {
@@ -1128,7 +1128,7 @@ async function eventClassChalk(c) {
 
   const ans = await askChoice({
     title: "[WARNING]",
-    body: `지우겠습니까? (이곳에 분필은 존재하지 않습니다)`,
+    body: `${c.name}는 그것을 지우겠습니까?`,
     options: [
       { label: "지우지 않고 나간다", value: "leave" },
       { label: "지운다", value: "erase" },
@@ -1821,3 +1821,4 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
