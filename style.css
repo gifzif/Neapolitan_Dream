@@ -2,7 +2,6 @@
    1. ROOT VARIABLES & RESET
    ========================================= */
 :root {
-   
     --bg-main: #050505;      
     --bg-panel: #111111;    
     --bg-input: #1a1a1a;
@@ -26,27 +25,30 @@ body {
     color: var(--text-color);
     font-family: var(--font-sans);
     height: 100vh;
-    overflow: hidden;
+    overflow: hidden; /* PC에서는 스크롤 없애고 패널별 스크롤 */
 }
-
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #000; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-red); }
 
-
 /* =========================================
    2. UTILITY & COMMON
    ========================================= */
 .screen {
     display: none;
-    width: 100%; height: 100%;
+    width: 100%; 
+    height: 100%;
     position: relative;
     padding: 20px;
     background: radial-gradient(circle at center, #111 0%, #000 100%);
 }
-.screen.active { display: flex; flex-direction: column; }
+
+.screen.active { 
+    display: flex; 
+    flex-direction: column; 
+}
 
 button {
     cursor: pointer; transition: 0.3s;
@@ -79,40 +81,27 @@ button {
     padding: 5px 15px; font-family: var(--font-mono);
 }
 .btn-turn:hover { background: var(--accent-red); color: #000; }
+
 /* --- JSON Data IO Buttons --- */
 .data-io-group {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-    border-top: 1px dashed #333;
-    padding-top: 15px;
+    display: flex; gap: 10px; margin-top: 15px;
+    border-top: 1px dashed #333; padding-top: 15px;
 }
-
 .btn-io {
-    flex: 1;
-    background: #111;
-    color: #888;
-    border: 1px solid #444;
-    padding: 10px;
-    font-size: 0.8rem;
-    font-family: var(--font-mono);
+    flex: 1; background: #111; color: #888; border: 1px solid #444;
+    padding: 10px; font-size: 0.8rem; font-family: var(--font-mono);
 }
-
 .btn-io:hover {
-    background: #222;
-    color: #fff;
-    border-color: #fff;
+    background: #222; color: #fff; border-color: #fff;
 }
 
 /* =========================================
-   3. CUSTOM SLIDER (지능/정신력 토글)
+   3. CUSTOM SLIDER
    ========================================= */
 input[type="range"] {
     -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0;
 }
 input[type="range"]:focus { outline: none; }
-
-/* 트랙 */
 input[type="range"]::-webkit-slider-runnable-track {
     width: 100%; height: 6px; cursor: pointer;
     background: #000; border: 1px solid #333; border-radius: 2px;
@@ -121,8 +110,6 @@ input[type="range"]::-moz-range-track {
     width: 100%; height: 6px; cursor: pointer;
     background: #000; border: 1px solid #333; border-radius: 2px;
 }
-
-/* 썸 (붉은색 버튼) */
 input[type="range"]::-webkit-slider-thumb {
     height: 18px; width: 18px; border-radius: 50%;
     background: var(--accent-red); cursor: pointer;
@@ -135,11 +122,9 @@ input[type="range"]::-moz-range-thumb {
     background: var(--accent-red); cursor: pointer;
     box-shadow: 0 0 5px var(--accent-red);
 }
-
 input[type="range"]::-webkit-slider-thumb:hover {
     transform: scale(1.2); box-shadow: 0 0 10px var(--accent-glow);
 }
-
 
 /* =========================================
    4. SCREENS UI
@@ -151,8 +136,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 .title.glitched {
     font-family: var(--font-mono); font-size: 4rem; color: var(--accent-red);
-    text-shadow: 2px 2px 0px #000, -1px -1px 0 #333;
-    margin-bottom: 10px;
+    text-shadow: 2px 2px 0px #000, -1px -1px 0 #333; margin-bottom: 10px;
 }
 .warning-box {
     border: 1px solid var(--accent-red); color: var(--accent-red);
@@ -172,7 +156,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
     flex: 1; background: var(--bg-panel); padding: 20px;
     border: 1px solid var(--border-color); display: flex; flex-direction: column;
 }
-
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; color: var(--accent-red); font-size: 0.8rem; margin-bottom: 5px; }
 .slider-box { display: flex; align-items: center; gap: 10px; }
@@ -188,26 +171,8 @@ input[type="text"] {
 .tag-btn:hover, .tag-btn.selected {
     border-color: var(--accent-red); color: #fff;
 }
-.survivor-box{
-  margin-top:16px;
-  padding:14px;
-  border:1px solid rgba(255,255,255,0.15);
-  border-radius:12px;
-  background: rgba(0,0,0,0.25);
-}
-.survivor-list{
-  margin:10px 0 0;
-  padding-left:18px;
-  line-height:1.6;
-}
-.survivor-list .meta{
-  margin-left:8px;
-  opacity:0.75;
-  font-size:0.9em;
-}
-.muted{ opacity:0.7; }
 
-/* 미니 카드 (생성 목록용) */
+/* 미니 카드 */
 .char-list-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px; margin-top: 15px; overflow-y: auto;
@@ -228,8 +193,7 @@ input[type="text"] {
     background: #222; color: #fff; border-top: 2px solid var(--accent-red);
 }
 
-
-/* --- Screen 3: Relation Matrix --- */
+/* --- Screen 3: Relation --- */
 .matrix-container {
     flex: 1; overflow: auto; background: var(--bg-panel);
     border: 1px solid var(--border-color); margin: 20px 0; padding: 10px;
@@ -248,8 +212,7 @@ input[type="text"] {
 }
 .relation-table .disabled { background: #080808; color: #333; }
 
-
-/* --- Screen 4: Game Main --- */
+/* --- Screen 4: Game --- */
 .game-header {
     height: 50px; display: flex; justify-content: space-between; align-items: center;
     border-bottom: 1px solid var(--border-color); padding: 0 10px;
@@ -259,7 +222,6 @@ input[type="text"] {
 
 .game-layout { display: flex; height: calc(100vh - 70px); }
 
-/* (1) 왼쪽: 콘솔 패널 + 애니메이션 */
 .console-panel {
     width: 300px; background: #000; border-right: 1px solid #333;
     display: flex; flex-direction: column;
@@ -271,7 +233,6 @@ input[type="text"] {
     display: flex; flex-direction: column;
 }
 
-/* 콘솔 페이드인 & 타자기 효과 */
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -284,294 +245,157 @@ input[type="text"] {
 .log.warning { border-left-color: var(--accent-red); color: #ff4444; }
 .log.event { color: #fff; }
 .log.system { color: #666; }
+.log.user-action { color: #00ff00; font-weight: bold; border-left-color: #00ff00; }
 .log-cursor { color: var(--accent-red); animation: blinkCursor 1s infinite; }
 @keyframes blinkCursor { 50% { opacity: 0; } }
 
-/* (2) 오른쪽: 디스플레이 패널 */
-.display-panel { flex: 1; background: var(--bg-panel); padding: 20px; display: flex; flex-direction: column; }
-
-.view-toggles { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-.toggle-btn {
-    background: transparent; color: #666; border: none; font-size: 0.9rem; padding: 5px 10px;
+/* 콘솔 선택지 버튼 그룹 */
+.console-choice-group {
+    margin-top: 8px; margin-bottom: 16px;
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start;
+    animation: fadeInUp 0.3s ease;
 }
-.toggle-btn.active { color: var(--accent-red); border-bottom: 2px solid var(--accent-red); }
+.console-btn {
+    background: transparent; border: 1px solid #bb0a1e; color: #bb0a1e;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+    padding: 6px 12px; cursor: pointer; transition: all 0.2s;
+}
+.console-btn:hover {
+    background: #bb0a1e; color: #000; box-shadow: 0 0 8px #bb0a1e;
+}
 
+.display-panel { flex: 1; background: var(--bg-panel); padding: 20px; display: flex; flex-direction: column; }
+.view-toggles { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+.toggle-btn { background: transparent; color: #666; border: none; font-size: 0.9rem; padding: 5px 10px; }
+.toggle-btn.active { color: var(--accent-red); border-bottom: 2px solid var(--accent-red); }
 .content-view { display: none; flex: 1; overflow-y: auto; }
 .content-view.active { display: block; }
 
-/* 🃏 캐릭터 카드 (게임 중) */
-.card-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
-}
-.char-card {
-    background: #151515; border: 1px solid #333; padding: 15px;
-    transition: all 0.3s;
-}
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+.char-card { background: #151515; border: 1px solid #333; padding: 15px; transition: all 0.3s; }
 .char-card:hover { border-color: #666; }
-
 .card-top { display: flex; justify-content: space-between; margin-bottom: 15px; }
 .card-top .name { font-size: 1.1rem; font-weight: bold; color: #eee; }
 .card-top .badge { font-size: 0.7rem; background: #222; padding: 2px 6px; color: #888; }
-
-/* 스탯 영역 (HP, SAN, TRUST) */
 .card-stats-area { display: flex; flex-direction: column; gap: 8px; }
 .stat-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
-.stat-label { width: 40px; font-weight: bold; color: #888; }
-.gauge-bg {
-    flex: 1; height: 6px; background: #222; margin: 0 8px;
-    border-radius: 2px; overflow: hidden;
-}
+.gauge-bg { flex: 1; height: 6px; background: #222; margin: 0 8px; border-radius: 2px; overflow: hidden; }
 .gauge { height: 100%; transition: width 0.5s; }
-.gauge.hp { background: #d32f2f; box-shadow: 0 0 5px #d32f2f; }
-.gauge.sanity { background: #5e35b1; box-shadow: 0 0 5px #5e35b1; }
+.gauge.hp { background: #d32f2f; }
+.gauge.sanity { background: #5e35b1; }
 .stat-val { font-family: var(--font-mono); color: #ccc; width: 30px; text-align: right; }
-
-.trust-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 5px; padding-top: 5px; border-top: 1px dashed #333;
-}
-.trust-val { font-family: var(--font-mono); font-size: 1.1rem; font-weight: bold; }
+.trust-row { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #333; }
 .trust-val.positive { color: #4caf50; }
 .trust-val.negative { color: #ff5252; }
+.char-card.status-dead { filter: grayscale(100%) brightness(0.4); border: 1px solid #222; opacity: 0.7; }
+.char-card.status-dead .card-top .badge { background: #fff; color: #000; }
 
-/* 사망 상태 (흑백 + 어둡게) */
-.char-card.status-dead {
-    filter: grayscale(100%) brightness(0.4);
-    border: 1px solid #222; opacity: 0.7;
-}
-.char-card.status-dead .card-top .badge { background: #fff; color: #000; font-weight: bold; }
-
-/* 위치 터미널 (아스키 아트 스타일) */
-.location-terminal {
-    font-family: var(--font-mono); color: #aaa; line-height: 1.8;
-}
-.floor-group { margin-bottom: 25px; }
-.floor-title {
-    color: var(--accent-red); font-weight: bold;
-    border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 2px;
-}
-.room-line { display: flex; align-items: center; padding: 5px 0; }
+.location-terminal { font-family: var(--font-mono); color: #aaa; line-height: 1.8; }
+.floor-title { color: var(--accent-red); font-weight: bold; border-bottom: 1px solid #333; margin-bottom: 10px; }
 .room-line:hover { background: #111; }
-.room-name { width: 120px; color: #ddd; }
-.room-name.warning { color: red; font-weight: bold; }
+.room-name.warning { color: red; }
 .room-path { color: #444; margin-right: 15px; letter-spacing: -2px; }
-.char-icon {
-    background: #222; color: #fff; padding: 2px 6px; margin-right: 5px;
-    border: 1px solid #555; font-size: 0.8rem; cursor: default;
-}
+.char-icon { background: #222; color: #fff; padding: 2px 6px; margin-right: 5px; border: 1px solid #555; font-size: 0.8rem; }
 .char-icon:hover { border-color: var(--accent-red); color: var(--accent-red); }
-.empty-spot { color: #333; font-size: 0.8rem; }
 
-
-/* --- Screen 5: Execution --- */
-.theme-blood {
-    background: #300000; /* 피 배경 */
-    justify-content: center; align-items: center; text-align: center;
-}
-.blood-title {
-    font-size: 3rem; color: #fff; font-family: var(--font-serif);
-    text-transform: uppercase; letter-spacing: 5px;
-}
-.target-name {
-    display: block; font-size: 2.5rem; color: #000; background: var(--accent-red);
-    padding: 10px 30px; margin: 30px auto; width: fit-content; font-weight: bold;
-    transform: rotate(-2deg);
-}
-
-/* --- Screen 6: Ending --- */
-#screen-ending {
-    justify-content: center; align-items: center; text-align: center;
-}
+/* --- Screen 5 & 6 --- */
+.theme-blood { background: #300000; justify-content: center; align-items: center; text-align: center; }
+.blood-title { font-size: 3rem; color: #fff; font-family: var(--font-serif); letter-spacing: 5px; }
+.target-name { display: block; font-size: 2.5rem; color: #000; background: var(--accent-red); padding: 10px 30px; margin: 30px auto; transform: rotate(-2deg); }
+#screen-ending { justify-content: center; align-items: center; text-align: center; }
 .ending-box h1 { color: var(--accent-red); font-size: 3rem; margin-bottom: 20px; }
-/* 콘솔 내 선택지 그룹 */
-.console-choice-group {
-  margin-top: 8px;
-  margin-bottom: 16px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-start; /* 왼쪽 정렬 */
-  animation: fadeIn 0.3s ease;
-}
-
-/* 콘솔 내 버튼 스타일 */
-.console-btn {
-  background: transparent;
-  border: 1px solid #bb0a1e; /* 붉은 테두리 */
-  color: #bb0a1e;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  padding: 6px 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.console-btn:hover {
-  background: #bb0a1e;
-  color: #000;
-  box-shadow: 0 0 8px #bb0a1e;
-}
-
-/* 유저가 선택한 후 남는 로그 기록용 */
-.log.user-action {
-  color: #00ff00; /* 초록색 등 눈에 띄는 색 */
-  font-weight: bold;
-  margin-top: 4px;
-  border-left: 2px solid #00ff00;
-  padding-left: 8px;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 
 /* =========================================
-   5. RESPONSIVE
+   5. RESPONSIVE (MOBILE OPTIMIZED)
    ========================================= */
 @media (max-width: 768px) {
-
+  
     body {
-        
-        height: 100dvh; 
-    }
-    
-    .screen {
-        padding: 10px;
-        overflow-y: auto;
         height: 100dvh;
-        display: flex;
-        flex-direction: column;
+        overflow: auto; 
     }
 
-    
+    /* Screen 컨테이너 단순화 */
+    .screen {
+        display: none;
+        padding: 15px;
+        height: auto;
+        min-height: 100dvh;
+        overflow-y: visible; 
+    }
+    .screen.active {
+        display: block; 
+    }
+
+ 
     button, input, select, .tag-btn {
         font-size: 16px; 
-        min-height: 44px;
+        min-height: 48px;
     }
 
-    /* ----------------------------------
-       화면별 상세 조정
-    ---------------------------------- */
-
-    /* [Screen 2: Creation] 캐릭터 등록 화면 개선 */
+    /* [Screen 2: Creation] 캐릭터 등록 */
     .creation-layout {
         display: flex;
-        flex-direction: column; 
-        gap: 15px;
-        height: auto; 
+        flex-direction: column;
+        gap: 20px;
+        height: auto;
         overflow: visible;
     }
-
     .input-panel {
         width: 100%;
-        max-height: none; 
+        height: auto;
+        max-height: none;
         overflow: visible;
-        background: #111;
-        
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
-        margin-bottom: 10px;
+        border: none;
+        border-bottom: 1px solid #333;
+        margin-bottom: 20px;
     }
-
     .list-panel {
         width: 100%;
-        flex: none;
         height: auto;
         min-height: 300px;
+        border: none;
     }
-
   
-    .tag-group {
-        gap: 8px;
-        justify-content: space-between;
-    }
-    .tag-btn {
-        flex: 1 1 30%;
-        text-align: center;
-        padding: 10px 5px;
-    }
-
-    
-    .slider-box {
-        gap: 15px;
-    }
-    input[type="range"] {
-        margin: 15px 0;
-    }
-
-    
     #btn-add-char {
+        margin-top: 15px;
+        margin-bottom: 20px;
         background: #222;
-        border-color: var(--accent-red);
         color: #fff;
-        font-weight: bold;
-        margin-top: 10px;
+        border-color: var(--accent-red);
     }
+    .tag-group { gap: 8px; }
+    .tag-btn { flex: 1 1 30%; text-align: center; }
 
-    /* [Screen 3: Relation] 관계도 테이블 */
-    .matrix-container {
-        width: 100%;
-        overflow-x: auto; 
-        -webkit-overflow-scrolling: touch; 
-    }
-    .relation-table th, .relation-table td {
-        padding: 8px 4px;
-        font-size: 0.8rem;
-    }
-    .relation-table select {
-        width: 100%;
-        min-width: 80px; 
-    }
-
-    /* [Screen 4: Game] 게임 진행 화면 */
+    /* [Screen 4: Game] 게임 화면 재배치 */
     .game-layout {
+        display: flex;
         flex-direction: column;
-        height: calc(100dvh - 60px);
+        height: auto; 
     }
-
-  
-    .console-panel {
-        width: 100%;
-        height: 40%; 
-        border-right: none;
-        border-bottom: 2px solid var(--border-color);
-        order: 2; 
-    }
-    
+   
     .display-panel {
-        width: 100%;
-        height: 60%;
-        padding: 10px;
         order: 1;
+        width: 100%;
+        height: 50vh; 
+        overflow-y: auto;
     }
-
-    
-    .console-content {
-        font-size: 0.9rem; 
-        padding: 10px;
+    .console-panel {
+        order: 2;
+        width: 100%;
+        height: 40vh; 
+        border-top: 2px solid var(--border-color);
+        border-right: none;
     }
-
-  
-    .console-choice-group {
-        justify-content: center;
-    }
-    .console-btn {
-        width: 100%; 
-        padding: 12px;
-        margin-bottom: 5px;
-        text-align: center;
-    }
-
-
+   
     .card-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
-    .char-card {
-        padding: 10px;
+    
+    /* [Screen 3] 관계도 테이블 스크롤 */
+    .matrix-container {
+        width: 100%;
+        overflow-x: auto;
     }
-    .card-top .name { font-size: 0.9rem; }
-    .stat-row { font-size: 0.7rem; }
 }
-
