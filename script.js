@@ -98,6 +98,10 @@ const SOCIAL_EVENTS = {
   familyComfort: [
     ["{a}: 괜찮아. 우리 버텨야지.", "{b}: …응. 너까지 사라지면 안 돼."],
     ["{a}: 숨 쉬어. 지금은 그거면 돼.", "{b}: …알겠어. 같이 가자."],
+    ["{a}: 뭐냐, 너 설마 겁 먹은거야?", "{b}: 농담하지 마. 나 지금 진지하니까"],
+    ["{a}: 집가면 밥해줘", "{b}: 나도 따뜻한 밥 먹고싶다. 그냥 보기만이라도 좋아"],
+    ["{a}: 규칙, 그런거 그냥 다 어겨버릴까?", "{b}: 장난이라도 그런 소리는 하지 마."],
+    
   ],
 };
 
@@ -242,6 +246,11 @@ const COLOC_DIALOGUE = [
 const state = {
   draftChars: [],
   relations: {},
+  noMoveStreak: 0,
+  movedToday: false,
+
+  noOutsideStreak: 0,
+  wentOutsideToday: false,
 
   chars: [],
   dayIndex: 0,
@@ -255,6 +264,33 @@ const state = {
 /* -------------------------------
   2) HELPERS
 --------------------------------*/
+function snapshotLocs() {
+  return aliveChars().map(c => `${c.id}:${c.loc}`).sort().join("|");
+}
+
+function tickNoMovementHunger(beforeSnap, afterSnap) {
+  if (beforeSnap === afterSnap) state.noMoveStreak++;
+  else state.noMoveStreak = 0;
+
+  if (state.noMoveStreak >= 4) {
+    state.noMoveStreak = 0;
+
+    logLine(`>> [WARNING] 지배인의 굶주림이 짙어집니다.`, "warning");
+    logLine(`>> [ADMIN] "글쎄요, 그들은 당신들의 위치를 다 알아낼 것입니다."`, "warning");
+
+    const v = rand(aliveChars());
+    applySanLoss(v, 18);
+    if (v.san <= 0) { 
+      v.san = 0; 
+      v.alive = false; 
+      v.deathType = "missing"; 
+      logLine(`>> [SYSTEM] ${v.name} 은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+
+    return; }
+  }
+}
+
+
 const $ = (sel) => document.querySelector(sel);
 function applyBodyCascade(b, removedKey) {
   if (!b) return;
@@ -1401,10 +1437,13 @@ function checkSoloRule() {
 /* -------------------------------
   17) DAILY EVENTS
 --------------------------------*/
+
+
 async function enter_3f_med(c) {
   if (!oncePerDayPerRoom(c, "3f_med", "nurse")) return;
   await eventNurseOn3FMed(c);
 }
+
 
 async function enter_1f_rest(c) {
   if (!oncePerDayPerRoom(c, "1f_rest", "sleepingBags")) return;
@@ -1428,6 +1467,7 @@ async function enter_3f_play(c) {
 async function enter_4f_roof(c) {
   if (!oncePerDayPerRoom(c, "4f_roof", "blackDoor")) return;
   await eventBlackDoorOnRoof(c); 
+  await eventRoofMerchant(c);
 }
 
 async function enter_any_1f(c) {
@@ -1477,7 +1517,7 @@ async function enter_any_1f(c) {
 async function onEnterRoom(c, from, to) {
   if (!c?.alive) return;
   if (from === to) return;
-
+  state.movedToday = true
   if (to === "2f_living") await enter_2f_living(c);
   if (to === "1f_class")  await enter_1f_class(c);
   if (to === "3f_play")   await enter_3f_play(c);
@@ -1503,6 +1543,7 @@ async function enter_2f_living(c) {
   await eventLivingRoomSky(c);
   await eventFakeCaretakerOn2F(c);
   await eventWhiteDoorOn2F(c);
+  await eventDeadFriendTalkOnLiving(c);
 }
 
 
@@ -1551,6 +1592,145 @@ async function eventBlackDoorOnRoof(c) {
     renderCards(); renderLocationTerminal(); endIfAllDead();
   }
 }
+function pickMerchantTypeByLuck(luckScore = 50) {
+  const r = Math.random();
+
+  // luckScore(1~100) 기반으로 가중치 (좋은 운일수록 레드↑, 블랙/옐로↓)
+  const t = clamp((luckScore - 50) / 50, -1, 1); // -1~1
+
+  const pRed   = clamp(0.25 + 0.20 * t, 0.10, 0.50);
+  const pBlue  = clamp(0.35 - 0.05 * t, 0.20, 0.45);
+  const pBlack = clamp(0.25 - 0.10 * t, 0.08, 0.35);
+  const pYellow= clamp(0.15 - 0.05 * t, 0.05, 0.22);
+
+  const sum = pRed + pBlue + pBlack + pYellow;
+  const x = r * sum;
+
+  if (x < pRed) return "red";
+  if (x < pRed + pBlue) return "blue";
+  if (x < pRed + pBlue + pBlack) return "black";
+  return "yellow";
+}
+
+async function eventRoofMerchant(c) {
+  if (!c?.alive) return;
+  if (c.loc !== "4f_roof") return;
+  if (!chance(0.2)) return; // “가끔” 빈도
+
+  await logGlitchLine(">>", `옥상에 상인이 돌아다닌다.`, "warning", 0.35);
+
+  const type = pickMerchantTypeByLuck(c.luckScore ?? 50);
+
+  if (type === "red") {
+    logLine(`>> [SYSTEM] 빨간 상인이다. 그는 ${c.name}을(를) 무사히 지나친다.`, "event");
+    applyTrust(c, +2);
+    return;
+  }
+
+  if (type === "blue") {
+    logLine(`>> [SYSTEM] 파란 상인이다. 그는 ${c.name}의 말솜씨를 시험한다.`, "warning");
+
+    
+    const int = clamp(c.int ?? 5, 1, 10);
+    const passP = clamp(0.35 + int * 0.06 + (c.luckScore ?? 50) / 100 * 0.15, 0.15, 0.85);
+    const pass = chance(passP);
+
+    if (pass) {
+      await logGlitchLine("파란 상인: ", `좋아. 관심이 생겼어.`, "system", 0.35);
+      
+      const part = pickExistingPart(c, ["leftfinger","rightfinger","leftEye","rightEye"]);
+      if (part) await removeBodyPart(c, part, { hpDmg: 18, sanAmt: 14, reason: "채취" });
+      applyTrust(c, -4);
+      return;
+    } else {
+      await logGlitchLine("파란 상인: ", `살면서 그런 말도 안 되는 이야기는 처음이야. 진짜 재미없네.`, "warning", 0.45);
+      
+      const part = pickExistingPart(c, ["leftEye","rightEye","tongue","leftfinger","rightfinger"]);
+      if (part) await removeBodyPart(c, part, { hpDmg: 22, sanAmt: 18, reason: "절단" });
+      applyTrust(c, -8);
+      return;
+    }
+  }
+
+  if (type === "black") {
+    logLine(`>> [SYSTEM] 검은 상인을 마주하였다`, "warning");
+    
+    const ans = await askChoice({
+      title: "[WARNING]",
+      body: `어느 부위를 절단하시겠습니까?`,
+      options: [
+        { label: "다리", value: "leg" },
+        { label: "왼팔", value: "leftArm" },
+        { label: "오른팔", value: "rightArm" },
+        { label: "오른손목", value: "rightWrist" },
+        { label: "아무것도 안 한다", value: "none" },
+      ],
+    });
+
+    if (ans === "none") {
+      await logGlitchLine("검은 상인: ", `그럼, 네가 선택한 거야.`, "warning", 0.55);
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 검은 상인에게 끌려가 사라졌다. (실종)`, "warning");
+      renderCards(); renderLocationTerminal(); endIfAllDead();
+      return;
+    }
+
+    if (ans === "leg") {
+      const leg = pickExistingPart(c, ["leftFoot","rightFoot","leftAnkle","rightAnkle"]) 
+              || pickExistingPart(c, ["leftFoot","rightFoot"]);
+      if (leg) await removeBodyPart(c, leg, { hpDmg: 24, sanAmt: 18, reason: "절단" });
+      await logGlitchLine("검은 상인: ", `이걸로 충분해.`, "warning", 0.55);
+      return;
+    }
+
+    const map = {
+      leftArm:   ["leftArm","leftElbow","leftHand","leftWrist"],
+      rightArm:  ["rightArm","rightElbow","rightHand","rightWrist"],
+      rightWrist:["rightWrist","rightHand"],
+    };
+
+    const part = pickExistingPart(c, map[ans] ?? ["leftHand","rightHand"]);
+    if (part) await removeBodyPart(c, part, { hpDmg: 20, sanAmt: 16, reason: "절단" });
+
+    await logGlitchLine("검은 상인: ", `덤이지? 고마워`, "warning", 0.55);
+    const extraLeg = pickExistingPart(c, ["leftFoot","rightFoot","leftAnkle","rightAnkle"]);
+    if (extraLeg) await removeBodyPart(c, extraLeg, { hpDmg: 26, sanAmt: 20, reason: "추가 절단" });
+
+    applyTrust(c, -10);
+    return;
+;
+  }
+
+  logLine(`>> [SYSTEM] 노란 상인이다. 세상이 노랗게 변한다.`, "warning");
+  await logGlitchLine(">>", `그래서 그런가, 당신 또한 노란 무언가가 되었습니다.`, "warning", 0.65);
+  c.alive = false;
+  c.deathType = "missing";
+  renderCards(); renderLocationTerminal(); endIfAllDead();
+}
+async function eventDeadFriendTalkOnLiving(c) {
+  if (!c?.alive) return;
+  if (c.loc !== "2f_living") return;
+  if (!chance(0.18)) return; 
+
+  const dead = state.chars.filter(x => !x.alive);
+  if (!dead.length) return;
+
+  const d = rand(dead);
+  await logGlitchLine(">>", `${d.name}: "${glitchText("…너 아직도 여기 있네.", 0.35)}"`, "warning", 0.35);
+
+  const luck = (c.luckScore ?? 50) / 100;
+  const goodP = clamp(0.35 + luck * 0.35, 0.25, 0.75);
+  if (chance(goodP)) {
+    logLine(`>> [SYSTEM] ${c.name}의 정신이 잠깐 안정된다.`, "event");
+    applySanHeal(c, 14);
+  } else {
+    logLine(`>> [SYSTEM] ${c.name}의 정신이 무너진다. (SAN -50)`, "warning");
+    applySanLoss(c, 50);
+  }
+}
+
+
 
 async function eventLivingRoomSky(c) {
   if (!c?.alive) return;
@@ -2450,21 +2630,25 @@ async function randomPhenomenonEvent() {
 }
 
 async function runOneChoiceEvent(c) {
-
   const r = await eventDontSayDream(c);
   if (r?.killed) return;
-  const commonEvents = [choiceMoveGroup, choiceOutside];
-  if (chance(0.15)) commonEvents.push(choiceSleep); 
 
-  let pool = [...commonEvents];
-  
+  const pool = [];
+
+  const moveWeight = 4; 
+  for (let i = 0; i < moveWeight; i++) pool.push(choiceMoveGroup);
+
+  pool.push(choiceOutside);
+  if (chance(0.20)) pool.push(choiceSleep);
+
   if (c.loc === "3f_admin") pool.push(choiceKnock);
-  if (c.loc === "3f_play") pool.push(choicePlayroom);
-  if (c.loc === "4f_roof") pool.push(choiceRoofPlant);
-  
+  if (c.loc === "3f_play")  pool.push(choicePlayroom);
+  if (c.loc === "4f_roof")  pool.push(choiceRoofPlant);
+
   const eventFn = rand(pool);
   await eventFn(c);
 }
+
 
 async function choiceOutside(c) {
   if (isImmobile(c)) {
@@ -2486,6 +2670,7 @@ async function choiceOutside(c) {
     applySanHeal(c, 2);
     return;
   }
+  state.wentOutsideToday = true;
 
   logLine(`>> [SYSTEM] ${c.name}이(가) 외부로 향합니다.`, "warning");
 
@@ -2550,6 +2735,17 @@ async function choiceSleep(c) {
 async function choiceMoveGroup() {
   const alive = aliveChars();
   if (!alive.length) return;
+  const weighted = [];
+    for (const x of alive) {
+      let w = 1;
+      if (x.tagKey === "social") w += 2;
+      if (x.tagKey === "curious") w += 2;
+      if (x.tagKey === "impulsive") w += 2;
+      if (x.san <= 30) w += 1; 
+      for (let i=0;i<w;i++) weighted.push(x);
+       }
+    const k = Math.min(alive.length, 1 + Math.floor(Math.random() * 3));
+    const group = shuffle([...new Set(weighted)]).slice(0, k);
 
   const moveTargets = [
     "1f_class","1f_rest","1f_grass",
@@ -2558,8 +2754,8 @@ async function choiceMoveGroup() {
     "4f_roof",
   ];
 
-  const k = Math.min(alive.length, 1 + Math.floor(Math.random() * 3));
-  const group = shuffle([...alive]).slice(0, k);
+  
+  
   const movable = group.filter(x => !isImmobile(x));
   const stuck = group.filter(x => isImmobile(x));
 
@@ -2806,8 +3002,34 @@ async function runDailyChoices() {
 /* -------------------------------
   18) SUNDAY FLOW & EXECUTION (FIXED)
 --------------------------------*/
+function tickOutsideRuleGameOver() {
+  if (!state.wentOutsideToday) {
+    state.noOutsideStreak++;
+  } else {
+    state.noOutsideStreak = 0;
+  }
+
+  if (state.noOutsideStreak >= 4) {
+    logLine(`>> [WARNING] 지배인은 더 이상 기다리지 않습니다.`, "warning");
+    logLine(`>> [ADMIN] "아무도 나오지 않는다면… 전부 제 것이지요."`, "warning");
+
+    aliveChars().forEach(c => {
+      c.alive = false;
+      c.deathType = "missing";
+    });
+
+    showEnding(false); 
+    return true;
+  }
+  return false;
+}
+
+
+
 async function nextDay() {
   if (!state.started) return;
+
+  const before = snapshotLocs();
 
   const btn = $("#btn-next-day");
   if (btn) btn.disabled = true;
@@ -2824,9 +3046,11 @@ async function nextDay() {
 
     if (isSunday()) {
       await runSundayMeeting();
-      return; 
+      return;
     }
- 
+
+    state.movedToday = false;
+    state.wentOutsideToday = false;
     rollWeatherForToday(false);
 
     tickAfterOutside();
@@ -2836,26 +3060,27 @@ async function nextDay() {
     await tickBreakups();
     await tickViolenceBySan();
 
-
-
     await runDailyChoices();
     await eventCoLocatedChat();
     await eventSocialTalks();
 
+    const after = snapshotLocs();
+    tickNoMovementHunger(before, after);
+
     renderCards();
     renderLocationTerminal();
 
+    if (tickOutsideRuleGameOver()) return;
     if (endIfAllDead()) return;
 
   } catch (err) {
     console.error(err);
     logLine(">> [SYSTEM ERROR] 진행 중 오류 발생", "warning");
-  } 
-  
-  finally {
+  } finally {
     if (!isSunday() && btn) btn.disabled = false;
   }
 }
+
 
 
 async function runSundayMeeting() {
@@ -2924,7 +3149,6 @@ function prepareExecutionScreen() {
 
   wrap.innerHTML = `
     <h1 class="blood-title">JUDGMENT DAY</h1>
-    <p>세 명의 이름이 거론되었습니다. 누구를 제거하시겠습니까?</p>
     <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px 0;">
       ${cand.map(c => `<button class="btn-primary exec-pick" data-id="${c.id}">${esc(c.name)}</button>`).join("")}
       <button class="btn-primary exec-pick" data-id="random">RANDOM</button>
@@ -3017,6 +3241,7 @@ async function doExecution(id) {
     logLine(`>> [SYSTEM] ${target.name}의 모습은 더이상 볼 수 없었습니다.`, "warning");
   }
   state.dayIndex++;
+  state.noMoveStreak = 0;
 
   if (state.dayIndex >= state.totalWeeks * 7) {
     const alive = aliveChars();
