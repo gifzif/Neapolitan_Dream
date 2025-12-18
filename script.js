@@ -1311,95 +1311,69 @@ function formatBodyStatus(c) {
 async function eventRumor() {
   const alive = aliveChars();
   if (alive.length < 3) return;
-  if (!chance(0.84)) return; 
+  if (!chance(0.84)) return;
 
-  
+  const markMissingIfBroken = (c) => {
+    if (!c?.alive) return true;          // 이미 죽었으면 더 진행 X
+    if ((c.san ?? 0) > 0) return false;  // 아직 버팀
+    c.san = 0;
+    c.alive = false;
+    c.deathType = "missing";
+    logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+    return true;
+  }
   const liars = alive.filter(c => c.tagKey === "liar");
   const spreader = liars.length ? rand(liars) : rand(alive);
 
-  
   const targets = alive.filter(c => c.id !== spreader.id);
   const target = rand(targets);
 
- 
   const base = 0.35;
   const bonus = (TAG_EFFECT[spreader.tagKey]?.rumorSuccess ?? 0);
-  const luck = (spreader.luckScore ?? 50) / 100 * 0.15;
+  const luck = ((spreader.luckScore ?? 50) / 100) * 0.15;
   const successP = clamp(base + bonus + luck, 0.05, 0.9);
 
   logLine(`${spreader.name}: "...${target.name}에 대한 얘기 들었어?"`, "event");
 
   const success = chance(successP);
 
- 
   const detectors = alive.filter(x => (TAG_EFFECT[x.tagKey]?.rumorDetect ?? 0) > 0);
-  const detectP = clamp(0.10 + detectors.reduce((s,x)=>s+(TAG_EFFECT[x.tagKey]?.rumorDetect ?? 0),0), 0, 0.65);
+  const detectP = clamp(
+    0.10 + detectors.reduce((s, x) => s + (TAG_EFFECT[x.tagKey]?.rumorDetect ?? 0), 0),
+    0,
+    0.65
+  );
   const detected = chance(detectP);
 
   if (success && !detected) {
-    
-    const loss = 6 + Math.floor(Math.random() * 8); 
+    const loss = 6 + Math.floor(Math.random() * 8); // 6~13
     applyTrust(target, -loss);
     applySanLoss(target, 6);
-    if (spreader.san <= 0) {
-      target.san = 0;
-      target.alive = false;
-      target.deathType = "missing";
-      logLine(`>> [SYSTEM] ${target.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
-      return;
-    }
+
+    if (markMissingIfBroken(target)) return;
 
     logLine(`>> [SYSTEM] ${target.name}에 대한 소문이 퍼졌다. (TRUST -${loss})`, "warning");
-    if (target.san <= 0) {
-      target.san = 0;
-      target.alive = false;
-      target.deathType = "missing";
-      logLine(`>> [SYSTEM] ${target.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
-      return;
-    }
-    
     applyTrust(spreader, +2);
     return;
   }
 
   if (detected) {
-   
     const penalty = 8 + Math.floor(Math.random() * 8); // 8~15
     applyTrust(spreader, -penalty);
     applySanLoss(spreader, 6);
 
     logLine(`>> [SYSTEM] 거짓말이 들켰다. ${spreader.name}의 신뢰가 무너진다. (TRUST -${penalty})`, "warning");
 
-    if (spreader.san <= 0) {
-      spreader.san = 0;
-      spreader.alive = false;
-      spreader.deathType = "missing";
-      logLine(`>> [SYSTEM] ${spreader.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
-      return;
-    }
+    if (markMissingIfBroken(spreader)) return;
 
-// 마지막 부분
-applySanLoss(spreader, 4);
-if (spreader.san <= 0) {
-  spreader.san = 0;
-  spreader.alive = false;
-  spreader.deathType = "missing";
-  logLine(`>> [SYSTEM] ${spreader.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
-  return;
-}
     applyTrust(target, +3);
     return;
   }
 
   logLine(`>> [SYSTEM] 소문은 퍼지지 않았다. 하지만 찝찝함은 남는다.`, "system");
   applySanLoss(spreader, 4);
-  if (spreader.san <= 0) {
-    spreader.san = 0;
-    spreader.alive = false;
-    spreader.deathType = "missing";
-    logLine(`>> [SYSTEM] ${spreader.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
-    return;
-  }
+
+  if (markMissingIfBroken(spreader)) return;
 }
 
 function tickSanityStages() {
@@ -3164,5 +3138,6 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
 
