@@ -809,6 +809,7 @@ async function startGameFromDraft() {
     loc: "1f_class",
     afterOutsideDays: 0,
     roomFlags: {}
+    
 
   }));
 
@@ -835,6 +836,11 @@ async function startGameFromDraft() {
 
   state.dayIndex = 0;
   state.started = true;
+  state.noOutsideStreak = 0;
+  state.wentOutsideToday = false;
+
+  state.noMoveStreak = 0;
+  state.movedToday = false;
 
   const N = state.chars.length;
   state.initialCount = N;
@@ -3334,12 +3340,22 @@ function restartAll() {
   state.executionCandidates = [];
   state.started = false;
 
+  state.noOutsideStreak = 0;
+  state.wentOutsideToday = false;
+
+  state.noMoveStreak = 0;
+  state.movedToday = false;
+
+  state.dynamicRel = {};
+  state.flags = {};
+  state.flags.restRoomSafe = false;
+
   resetConsole();
   renderDraftList();
   buildTagButtons();
-
   showScreen("#screen-intro");
 }
+
 
 function setupIntro() {
   $("#btn-start")?.addEventListener("click", () => {
@@ -3362,6 +3378,7 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
 
 
