@@ -261,20 +261,17 @@ function applyBodyCascade(b, removedKey) {
 
   const setFalse = (k) => { if (k && k !== "ribs") b[k] = false; };
 
-  if (removedKey === "leftHand") { setFalse("leftWrist"); setFalse("leftfinger"); }
-  if (removedKey === "rightHand") { setFalse("rightWrist"); setFalse("rightfinger"); }
+  if (removedKey === "leftHand")  { setFalse("leftWrist"); b.leftfinger = 0; }
+  if (removedKey === "rightHand") { setFalse("rightWrist"); b.rightfinger = 0; }
 
-  if (removedKey === "leftWrist") { setFalse("leftHand"); setFalse("leftfinger"); }
-  if (removedKey === "rightWrist") { setFalse("rightHand"); setFalse("rightfinger"); }
+  if (removedKey === "leftWrist")  { setFalse("leftHand");  b.leftfinger = 0; }
+  if (removedKey === "rightWrist") { setFalse("rightHand"); b.rightfinger = 0; }
 
-
-  if (removedKey === "leftFoot") { setFalse("leftAnkle"); }
-  if (removedKey === "rightFoot") { setFalse("rightAnkle"); }
-  if (removedKey === "leftAnkle") { setFalse("leftFoot"); }
-  if (removedKey === "rightAnkle") { setFalse("rightFoot"); }
+  if (removedKey === "leftFoot")  setFalse("leftAnkle");
+  if (removedKey === "rightFoot") setFalse("rightAnkle");
+  if (removedKey === "leftAnkle") setFalse("leftFoot");
+  if (removedKey === "rightAnkle") setFalse("rightFoot");
   if (removedKey === "leftEye" || removedKey === "rightEye") setFalse("eyelid");
-  if (removedKey === "eyelid") {}
-
 }
 
 
@@ -1186,14 +1183,20 @@ function getRemovableParts(c) {
   if (!b) return [];
 
   const parts = [];
+
+
+  if ((b.leftfinger ?? 0) > 0) parts.push("leftfinger");
+  if ((b.rightfinger ?? 0) > 0) parts.push("rightfinger");
+
   for (const k of Object.keys(BODY_LABEL)) {
-    if (k === "ribs") continue;
+    if (k === "ribs" || k === "leftfinger" || k === "rightfinger") continue;
     if (b[k] === true) parts.push(k);
   }
-  if ((b.ribs ?? 0) > 0) parts.push("ribs");
 
+  if ((b.ribs ?? 0) > 0) parts.push("ribs");
   return parts;
 }
+
 
 async function removeBodyPart(c, partKey, { hpDmg = 20, sanAmt = 10, reason = "소멸" } = {}) {
   if (!c?.alive) return;
@@ -1202,7 +1205,9 @@ async function removeBodyPart(c, partKey, { hpDmg = 20, sanAmt = 10, reason = "�
 
   if (partKey === "ribs") {
     b.ribs = Math.max(0, (b.ribs ?? 0) - 1);
-  } else {
+  } else if (partKey === "leftfinger" || partKey === "rightfinger") {
+    b[partKey] = Math.max(0, (b[partKey] ?? 0) - 1);
+    } else {
     b[partKey] = false;
   }
   applyBodyCascade(b, partKey);
@@ -1224,6 +1229,12 @@ async function removeBodyPart(c, partKey, { hpDmg = 20, sanAmt = 10, reason = "�
     await logGlitchLine(">>", `${c.name} : ████ ░░░░ ▮▮▮ 0%`, "warning", 0.45);
     logLine(`>> [ADMIN] ${c.name}씨는 제가 데려가겠습니다. (실종)`, "warning");
   }
+  else if (c.san <= 0) {
+      c.san = 0;
+      c.alive = false;
+      c.deathType = "missing";
+      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+    }
 
   renderCards();
   renderLocationTerminal();
@@ -1242,25 +1253,32 @@ function formatBodyStatus(c) {
   const b = c.body || {};
   const mark = (v) => (v ? "O" : "X");
 
+  const lf = clamp(b.leftfinger ?? 0, 0, 5);
+  const rf = clamp(b.rightfinger ?? 0, 0, 5);
+
   const lines = [
-    `${BODY_LABEL.leftfinger} - ${mark(b.leftfinger)}`,
-    `${BODY_LABEL.rightfinger} - ${mark(b.rightfinger)}`,
+    `${BODY_LABEL.leftfinger} (${lf}/5)`,
+    `${BODY_LABEL.rightfinger} (${rf}/5)`,
+
     `${BODY_LABEL.leftHand} - ${mark(b.leftHand)}`,
     `${BODY_LABEL.rightHand} - ${mark(b.rightHand)}`,
     `${BODY_LABEL.leftEar} - ${mark(b.leftEar)}`,
     `${BODY_LABEL.rightEar} - ${mark(b.rightEar)}`,
     `${BODY_LABEL.teeth} - ${mark(b.teeth)}`,
     `${BODY_LABEL.eyelid} - ${mark(b.eyelid)}`,
+
     `${BODY_LABEL.leftFoot} - ${mark(b.leftFoot)}`,
     `${BODY_LABEL.rightFoot} - ${mark(b.rightFoot)}`,
     `${BODY_LABEL.tongue} - ${mark(b.tongue)}`,
     `${BODY_LABEL.leftEye} - ${mark(b.leftEye)}`,
     `${BODY_LABEL.rightEye} - ${mark(b.rightEye)}`,
+
     `${BODY_LABEL.ribs} (${b.ribs ?? 0}/24)`,
   ];
 
   return lines.join("\n");
 }
+
 async function eventRumor() {
   const alive = aliveChars();
   if (alive.length < 3) return;
@@ -1614,9 +1632,14 @@ state.flags.restRoomSafe = false;
 
 function pickExistingPart(c, keys) {
   const b = c.body ?? (c.body = cloneBody());
-  const pool = keys.filter(k => k === "ribs" ? (b.ribs ?? 0) > 0 : b[k] === true);
+  const pool = keys.filter(k => {
+    if (k === "ribs") return (b.ribs ?? 0) > 0;
+    if (k === "leftfinger" || k === "rightfinger") return (b[k] ?? 0) > 0;
+    return b[k] === true;
+  });
   return pool.length ? rand(pool) : null;
 }
+
 
 async function eventCaretakerOn1F(c) {
   if (!c?.alive) return;
@@ -1824,7 +1847,7 @@ async function eventNurseOn3FMed(c) {
   });
 
   if (ans === "silent") {
-    await logGlitchLine("간호사: ", `...먹이.`, "warning", 0.85);
+    await logGlitchLine("간호사: ", `오늘은 달콤한 디저트구나?`, "warning", 0.85);
     c.alive = false;
     c.deathType = "missing";
     logLine(`>> [SYSTEM] ${c.name}은(는) 인식되는 순간 사라졌다. (실종)`, "warning");
@@ -2228,6 +2251,10 @@ async function eventFakeCaretakerOn2F(c) {
     applySanLoss(c, 26);
     applyTrust(c, -8);
     logLine(`>> [SYSTEM] …그것은 ${c.name}을/를 인식했다.`, "warning");
+    c.alive = false;
+    c.deathType = "missing";
+    await logLine(`>> [SYSTEM] ${c.name}는 아무말도, 아무런 표현도 불가했다. 더는 아무말도 들리지 않는다.`, "warning");
+    return;
   }
 
   const from = c.loc;
@@ -2550,7 +2577,7 @@ async function choiceKnock(c) {
       applySanLoss(c, 10);
       const parts = ["손가락", "손목", "귀", "어금니", "눈꺼풀", "발뒤꿈치", "혀끝", "갈비뼈 한 조각"];
       const part = rand(parts);
-      await logGlitchLine(">>", `${c.name}의 ${part}이/가 소멸되었습니다`, "warning", 0.50);
+      await logGlitchLine(">>", `${c.name}의 ${part}이/가 소멸되었습니다`, "warning", 0.10);
       logLine(`>> [SYSTEM] (HP -${dmg})`, "warning");
 
       if (c.san <= 0) {
@@ -2934,7 +2961,7 @@ function showEnding(success) {
   if (!box) return;
 
   if (success) {
-    const survivors = aliveChars(); // 살아남은 애들
+    const survivors = aliveChars(); 
     const listHtml = survivors.length
       ? `<ul class="survivor-list">
           ${survivors.map(c => `
@@ -2944,24 +2971,24 @@ function showEnding(success) {
             </li>
           `).join("")}
         </ul>`
-      : `<p class="muted">생존자 데이터가 확인되지 않습니다.</p>`;
+      : `<p class="muted">생존자가 더이상 확인되지 않습니다.</p>`;
 
     box.innerHTML = `
       <h1>ESCAPE SUCCESS</h1>
-      <p>무사히 이 세상을 탈출했다.</p>
+      <p>눈을 떠보니, 무사히 원래 집으로 돌아왔다.</p>
 
       <div class="survivor-box">
         <h3>탈출 성공 명단</h3>
         ${listHtml}
       </div>
 
-      <button class="btn-restart btn-primary">시스템 리부트</button>
+      <button class="btn-restart btn-primary">재시작</button>
     `;
   } else {
     box.innerHTML = `
       <h1>BAD ENDING</h1>
-      <p>세상밖에 다시 도달한 자는 없었다. 마치 현실같고 꿈같던 것. 어느 경계선일까.</p>
-      <button class="btn-restart btn-primary">시스템 리부트</button>
+      <p>세상밖에 다시 도달한 자는 없었다. 마치 현실같고 꿈같던 것. 무엇의 경계였까.</p>
+      <button class="btn-restart btn-primary">재시작</button>
     `;
   }
 
@@ -3007,5 +3034,4 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
-
 
