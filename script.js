@@ -289,6 +289,28 @@ function tickNoMovementHunger(beforeSnap, afterSnap) {
     return; }
   }
 }
+function tickNoMovementHungerByFlag() {
+
+  if (!state.movedToday) state.noMoveStreak++;
+  else state.noMoveStreak = 0;
+
+  if (state.noMoveStreak >= 4) {
+    state.noMoveStreak = 0;
+
+    logLine(`>> [WARNING] 지배인의 굶주림이 짙어집니다.`, "warning");
+    logLine(`>> [ADMIN] "글쎄요, 그들은 당신들의 위치를 다 알아낼 것입니다."`, "warning");
+
+    const v = rand(aliveChars());
+    applySanLoss(v, 18);
+
+    if (v.san <= 0) {
+      v.san = 0;
+      v.alive = false;
+      v.deathType = "missing";
+      logLine(`>> [SYSTEM] ${v.name} 은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+    }
+  }
+}
 
 
 const $ = (sel) => document.querySelector(sel);
@@ -844,7 +866,11 @@ async function startGameFromDraft() {
 
   const N = state.chars.length;
   state.initialCount = N;
-  state.totalWeeks = (N <= 10) ? 4 : (N <= 20) ? 8 : Math.ceil(N * 0.4);
+  state.totalWeeks = (N <= 10) ? 4 
+  : (N <= 20) ? 8 
+  : (N < 30) ? 12 
+  : (N < 40) ? 16 
+  : Math.ceil(N * 0.4);
 
   showScreen("#screen-game");
   resetConsole();
@@ -2740,27 +2766,27 @@ async function choiceSleep(c) {
 async function choiceMoveGroup() {
   const alive = aliveChars();
   if (!alive.length) return;
+
+ 
   const weighted = [];
-    for (const x of alive) {
-      let w = 1;
-      if (x.tagKey === "social") w += 2;
-      if (x.tagKey === "curious") w += 2;
-      if (x.tagKey === "impulsive") w += 2;
-      if (x.san <= 30) w += 1; 
-      for (let i=0;i<w;i++) weighted.push(x);
-       }
-    const k = Math.min(alive.length, 1 + Math.floor(Math.random() * 3));
-    const group = shuffle([...new Set(weighted)]).slice(0, k);
+  for (const x of alive) {
+    let w = 1;
+    if (x.tagKey === "social") w += 2;
+    if (x.tagKey === "curious") w += 2;
+    if (x.tagKey === "impulsive") w += 2;
+    if (x.san <= 30) w += 1;
+    for (let i = 0; i < w; i++) weighted.push(x);
+  }
+  const k = Math.min(alive.length, 1 + Math.floor(Math.random() * 3));
+  const group = shuffle([...new Set(weighted)]).slice(0, k);
 
   const moveTargets = [
-    "1f_class","1f_rest","1f_grass",
+    "1f_class", "1f_rest", "1f_grass",
     "2f_living",
-    "3f_play","3f_admin","3f_med",
+    "3f_play", "3f_admin", "3f_med",
     "4f_roof",
   ];
 
-  
-  
   const movable = group.filter(x => !isImmobile(x));
   const stuck = group.filter(x => isImmobile(x));
 
@@ -2772,7 +2798,6 @@ async function choiceMoveGroup() {
   const currentAny = movable[0].loc;
   const targets = moveTargets.filter(x => x !== currentAny);
   const target = rand(targets);
-
   const names = movable.map(c => c.name).join(", ");
 
   const ans = await askChoice({
@@ -2788,43 +2813,61 @@ async function choiceMoveGroup() {
     ],
   });
 
+  
   if (ans === "stay") {
+ 
+    state.refuseMoveStreak = (state.refuseMoveStreak || 0) + 1;
+
+    if (state.refuseMoveStreak >= 4) {
+      logLine(`>> [SYSTEM] 이런, 그들이 우리의 위치를 알아버렸습니다.`, "warning");
+      await sleep(500);
+      logLine(`[ADMIN] "체스 말도 움직여야 게임이 되는 법입니다. 쓸모가 없군요."`, "warning");
+      
+      // 전원 사망 처리
+      aliveChars().forEach(c => {
+        c.alive = false;
+        c.deathType = "missing";
+      });
+      
+      renderCards();
+      renderLocationTerminal();
+      showEnding(false); 
+      return; 
+    }
+
     logLine(`>> [SYSTEM] 이동이 거부되었습니다.`, "system");
     movable.forEach(c => applyTrust(c, -1));
     return;
-  }
-
-
-   for (const p of movable) {
-    const from = p.loc;
-    p.loc = target;
-    await onEnterRoom(p, from, target);
-    if (!p.alive) break;
-  }
-  logLine(`>> [SYSTEM] ${names} 이동: ${roomLabel(target)}`, "event");
-  await sleep(250);
-  await eventPostMoveUnease(movable, target);
-
-
-  if (movable.length === 1 && target !== "1f_class" && target !=="1f_rest" && target !=="1f_grass") {
-    const solo = movable[0];
-    solo.alive = false;
-    solo.deathType = "missing";
-    logLine(`>> [SYSTEM] ${solo.name}은(는)\n이동하던 중 신호가 끊겼습니다. (실종)`, "warning");
-  } else {
- 
-    logLine(`>> [SYSTEM] 해당 장소에 도착했습니다.`, "system");
-
- 
-    movable.forEach(c => applyTrust(c, +1));
-  }
-
-  renderCards();
-  renderLocationTerminal();
-  vanishSoloUpstairs();
-  renderCards();
-  renderLocationTerminal();
+  } 
   
+  else {
+    if (state.refuseMoveStreak > 0) {
+  
+    }
+    state.refuseMoveStreak = 0; 
+    
+    for (const p of movable) {
+      const from = p.loc;
+      p.loc = target;
+      await onEnterRoom(p, from, target);
+      if (!p.alive) break;
+    }
+    logLine(`>> [SYSTEM] ${names} 이동: ${roomLabel(target)}`, "event");
+    await sleep(250);
+    await eventPostMoveUnease(movable, target);
+
+    if (movable.length === 1 && target !== "1f_class" && target !== "1f_rest" && target !== "1f_grass") {
+    } else {
+      logLine(`>> [SYSTEM] 해당 장소에 도착했습니다.`, "system");
+      movable.forEach(c => applyTrust(c, +1));
+    }
+
+    renderCards();
+    renderLocationTerminal();
+    vanishSoloUpstairs();
+    renderCards();
+    renderLocationTerminal();
+  }
 }
 
 function vanishSoloUpstairs() {
@@ -3007,35 +3050,18 @@ async function runDailyChoices() {
 /* -------------------------------
   18) SUNDAY FLOW & EXECUTION (FIXED)
 --------------------------------*/
-function tickOutsideRuleGameOver() {
-  if (!state.wentOutsideToday) {
-    state.noOutsideStreak++;
-  } else {
-    state.noOutsideStreak = 0;
-  }
-
-  if (state.noOutsideStreak >= 4) {
-    logLine(`>> [WARNING] 지배인은 더 이상 기다리지 않습니다.`, "warning");
-    logLine(`>> [ADMIN] "아무도 나오지 않는다면… 전부 제 것이지요."`, "warning");
-
-    aliveChars().forEach(c => {
-      c.alive = false;
-      c.deathType = "missing";
-    });
-
-    showEnding(false); 
-    return true;
-  }
-  return false;
-}
-
+/* -------------------------------
+   [FIXED] 외부 미출입 규칙 (연속 4일 체크)
+   - 연속으로 안 나갈 때만 카운트 증가
+   - 하루라도 나가면 즉시 0으로 초기화
+   - 2일, 3일차에 경고 로그 출력
+--------------------------------*/
 
 
 async function nextDay() {
   if (!state.started) return;
 
-  const before = snapshotLocs();
-
+  const before = snapshotLocs(); 
   const btn = $("#btn-next-day");
   if (btn) btn.disabled = true;
 
@@ -3055,17 +3081,19 @@ async function nextDay() {
     }
 
     state.movedToday = false;
-    state.wentOutsideToday = false;
+    state.wentOutsideToday = false; 
+    
     rollWeatherForToday(false);
-
     tickAfterOutside();
     tickSanityStages();
     checkSoloRule();
+    
     await eventRumor();
     await tickBreakups();
     await tickViolenceBySan();
 
-    await runDailyChoices();
+    await runDailyChoices(); 
+    
     await eventCoLocatedChat();
     await eventSocialTalks();
 
@@ -3075,7 +3103,7 @@ async function nextDay() {
     renderCards();
     renderLocationTerminal();
 
-    if (tickOutsideRuleGameOver()) return;
+    
     if (endIfAllDead()) return;
 
   } catch (err) {
@@ -3338,8 +3366,8 @@ function restartAll() {
   state.totalWeeks = 4;
   state.raining = false;
   state.executionCandidates = [];
-  state.started = false;
-
+  state.started = false;  
+  state.refuseMoveStreak = 0;
   state.noOutsideStreak = 0;
   state.wentOutsideToday = false;
 
@@ -3378,6 +3406,7 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
 
 
