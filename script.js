@@ -1154,14 +1154,14 @@ async function tickBreakups() {
       c.san = 0;
       c.alive = false;
       c.deathType = "missing";
-      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      logLine(`>> [SYSTEM] ${b.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
   if (a.san <= 0) {
       c.san = 0;
       c.alive = false;
       c.deathType = "missing";
-      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      logLine(`>> [SYSTEM] ${a.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
 }
@@ -1345,7 +1345,7 @@ async function eventRumor() {
       c.san = 0;
       c.alive = false;
       c.deathType = "missing";
-      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      logLine(`>> [SYSTEM] ${target.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
 
@@ -1354,7 +1354,7 @@ async function eventRumor() {
       c.san = 0;
       c.alive = false;
       c.deathType = "missing";
-      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+      logLine(`>> [SYSTEM] ${target.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
     
@@ -2866,7 +2866,9 @@ async function nextDay() {
   } catch (err) {
     console.error(err);
     logLine(">> [SYSTEM ERROR] 진행 중 오류 발생", "warning");
-  } finally {
+  } 
+  
+  finally {
     if (!isSunday() && btn) btn.disabled = false;
   }
 }
