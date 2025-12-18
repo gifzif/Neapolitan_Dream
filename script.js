@@ -1341,7 +1341,7 @@ async function eventRumor() {
     const loss = 6 + Math.floor(Math.random() * 8); 
     applyTrust(target, -loss);
     applySanLoss(target, 6);
-    if (target.san <= 0) {
+    if (spreader.san <= 0) {
       target.san = 0;
       target.alive = false;
       target.deathType = "missing";
@@ -1370,26 +1370,36 @@ async function eventRumor() {
 
     logLine(`>> [SYSTEM] 거짓말이 들켰다. ${spreader.name}의 신뢰가 무너진다. (TRUST -${penalty})`, "warning");
 
-    if (c.san <= 0) {
-      c.san = 0;
-      c.alive = false;
-      c.deathType = "missing";
-      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+    if (spreader.san <= 0) {
+      spreader.san = 0;
+      spreader.alive = false;
+      spreader.deathType = "missing";
+      logLine(`>> [SYSTEM] ${spreader.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
+
+// 마지막 부분
+applySanLoss(spreader, 4);
+if (spreader.san <= 0) {
+  spreader.san = 0;
+  spreader.alive = false;
+  spreader.deathType = "missing";
+  logLine(`>> [SYSTEM] ${spreader.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+  return;
+}
     applyTrust(target, +3);
     return;
   }
 
   logLine(`>> [SYSTEM] 소문은 퍼지지 않았다. 하지만 찝찝함은 남는다.`, "system");
   applySanLoss(spreader, 4);
-  if (c.san <= 0) {
-      c.san = 0;
-      c.alive = false;
-      c.deathType = "missing";
-      logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
-      return;
-    }
+  if (spreader.san <= 0) {
+    spreader.san = 0;
+    spreader.alive = false;
+    spreader.deathType = "missing";
+    logLine(`>> [SYSTEM] ${spreader.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
+    return;
+  }
 }
 
 function tickSanityStages() {
@@ -3154,4 +3164,5 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
+
 
