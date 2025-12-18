@@ -436,6 +436,38 @@ function askChoice({ title = "[CHOICE]", body, options }) {
 /* -------------------------------
   6) CREATION UI (MODIFIED: RESISTANCE)
 --------------------------------*/
+
+function openBodyModal(c){
+  const modal = document.getElementById("body-modal");
+  const title = document.getElementById("body-modal-title");
+  const content = document.getElementById("body-modal-content");
+  if(!modal || !title || !content) return;
+
+  title.textContent = `${c.name} — 신체 상태`;
+  content.textContent = formatBodyStatus(c);
+
+  modal.classList.remove("hidden");
+}
+
+function closeBodyModal(){
+  const modal = document.getElementById("body-modal");
+  modal?.classList.add("hidden");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("body-modal");
+  document.getElementById("body-modal-close")?.addEventListener("click", closeBodyModal);
+  document.getElementById("body-modal-ok")?.addEventListener("click", closeBodyModal);
+
+  modal?.addEventListener("click", (e) => {
+    if(e.target === modal) closeBodyModal();
+  });
+  window.addEventListener("keydown", (e) => {
+    if(e.key === "Escape") closeBodyModal();
+  });
+});
+
+
 function buildTagButtons() {
   const group = document.querySelector("#screen-creation .tag-group");
   if (!group) return;
@@ -934,13 +966,8 @@ function renderCards() {
       `;
     }
 
-    const tbtn = card.querySelector(".body-toggle");
-    const pre = card.querySelector(".body-status");
-    tbtn?.addEventListener("click", () => {
-      const open = pre.style.display !== "none";
-      pre.style.display = open ? "none" : "block";
-      tbtn.textContent = open ? "신체 상태" : "신체 상태 (닫기)";
-    });
+    card.querySelector(".body-toggle")?.addEventListener("click", () => openBodyModal(c));
+
 
     wrap.appendChild(card);
   });
@@ -1478,7 +1505,7 @@ async function eventLivingRoomSky(c) {
       if (part) await removeBodyPart(c, part, { hpDmg: 18, sanAmt: 14, reason: "소멸" });
       applySanLoss(c, 90);
       applyTrust(c, -8);
-      
+
     } else {
       applySanLoss(c, 2);
       applyTrust(c, 0);
