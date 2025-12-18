@@ -1151,16 +1151,16 @@ async function tickBreakups() {
   applyTrust(a, -8);
   applyTrust(b, -8);
   if (b.san <= 0) {
-      c.san = 0;
-      c.alive = false;
-      c.deathType = "missing";
+      b.san = 0;
+      b.alive = false;
+      b.deathType = "missing";
       logLine(`>> [SYSTEM] ${b.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
   if (a.san <= 0) {
-      c.san = 0;
-      c.alive = false;
-      c.deathType = "missing";
+      a.san = 0;
+      a.alive = false;
+      a.deathType = "missing";
       logLine(`>> [SYSTEM] ${a.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
@@ -1341,19 +1341,19 @@ async function eventRumor() {
     const loss = 6 + Math.floor(Math.random() * 8); 
     applyTrust(target, -loss);
     applySanLoss(target, 6);
-    if (c.san <= 0) {
-      c.san = 0;
-      c.alive = false;
-      c.deathType = "missing";
+    if (target.san <= 0) {
+      target.san = 0;
+      target.alive = false;
+      target.deathType = "missing";
       logLine(`>> [SYSTEM] ${target.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
 
     logLine(`>> [SYSTEM] ${target.name}에 대한 소문이 퍼졌다. (TRUST -${loss})`, "warning");
-    if (c.san <= 0) {
-      c.san = 0;
-      c.alive = false;
-      c.deathType = "missing";
+    if (target.san <= 0) {
+      target.san = 0;
+      target.alive = false;
+      target.deathType = "missing";
       logLine(`>> [SYSTEM] ${target.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
       return;
     }
