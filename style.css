@@ -308,32 +308,38 @@ input[type="text"] {
 /* =========================================
    5. RESPONSIVE (MOBILE OPTIMIZED)
    ========================================= */
+/* =========================================
+   5. RESPONSIVE (MOBILE OPTIMIZED)
+   ========================================= */
 @media (max-width: 768px) {
-  
+    /* 기본 모바일 설정 */
     body {
         height: 100dvh;
-        overflow: auto; 
+        overflow: auto;
     }
 
-    /* Screen 컨테이너 단순화 */
+    /* Screen 공통: 패딩 줄이고 전체 스크롤 */
     .screen {
-        display: none;
-        padding: 15px;
+        padding: 10px;
         height: auto;
         min-height: 100dvh;
-        overflow-y: visible; 
+        overflow-y: visible;
+        display: none;
     }
     .screen.active {
-        display: block; 
+        display: block;
     }
 
- 
+   
     button, input, select, .tag-btn {
         font-size: 16px; 
         min-height: 48px;
     }
 
-    /* [Screen 2: Creation] 캐릭터 등록 */
+    /* ----------------------------------
+       [Screen 2: Creation] 캐릭터 등록
+       - 입력폼이 키보드에 가려지지 않게 전체 스크롤 사용
+    ---------------------------------- */
     .creation-layout {
         display: flex;
         flex-direction: column;
@@ -349,6 +355,7 @@ input[type="text"] {
         border: none;
         border-bottom: 1px solid #333;
         margin-bottom: 20px;
+        background: #0a0a0a;
     }
     .list-panel {
         width: 100%;
@@ -356,7 +363,6 @@ input[type="text"] {
         min-height: 300px;
         border: none;
     }
-  
     #btn-add-char {
         margin-top: 15px;
         margin-bottom: 20px;
@@ -367,35 +373,71 @@ input[type="text"] {
     .tag-group { gap: 8px; }
     .tag-btn { flex: 1 1 30%; text-align: center; }
 
-    /* [Screen 4: Game] 게임 화면 재배치 */
+    /* ----------------------------------
+       [Screen 3] 관계도 테이블
+    ---------------------------------- */
+    .matrix-container {
+        width: 100%;
+        overflow-x: auto;
+        margin-bottom: 50px; /* 하단 여백 */
+    }
+
+    /* ----------------------------------
+       [Screen 4: Game] 게임 화면
+       - 콘솔이 위, 디스플레이가 아래
+       - 게임 화면만 예외적으로 화면 높이 고정 (내부 스크롤)
+    ---------------------------------- */
+    #screen-game {
+        height: 100dvh;
+        overflow: hidden;
+        padding: 0;
+        display: flex; 
+        flex-direction: column;
+    }
+
+    .game-header {
+        flex: 0 0 50px; 
+    }
+
     .game-layout {
         display: flex;
         flex-direction: column;
-        height: auto; 
+
+        height: calc(100dvh - 50px); 
     }
-   
-    .display-panel {
-        order: 1;
-        width: 100%;
-        height: 50vh; 
-        overflow-y: auto;
-    }
+
+    /* 1. 콘솔 패널 (위쪽) */
     .console-panel {
+        order: 1; 
+        width: 100%;
+        height: 40%;
+        border-right: none;
+        border-bottom: 2px solid var(--border-color);
+        background: #000;
+    }
+    .console-content {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    /* 2. 디스플레이 패널 (아래쪽) */
+    .display-panel {
         order: 2;
         width: 100%;
-        height: 40vh; 
-        border-top: 2px solid var(--border-color);
-        border-right: none;
+        height: 60%; 
+        padding: 10px;
+        background: var(--bg-panel);
+        overflow-y: auto;
     }
+
    
     .card-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
+        padding-bottom: 20px;
     }
-    
-    /* [Screen 3] 관계도 테이블 스크롤 */
-    .matrix-container {
-        width: 100%;
-        overflow-x: auto;
-    }
+    .char-card { padding: 10px; }
+    .card-top .name { font-size: 0.9rem; }
+    .stat-row { font-size: 0.7rem; }
 }
+
