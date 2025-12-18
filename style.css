@@ -192,6 +192,67 @@ input[type="text"] {
     width: 100%; padding: 15px; margin-top: 20px;
     background: #222; color: #fff; border-top: 2px solid var(--accent-red);
 }
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modal-overlay.hidden{ display:none; }
+
+.modal-card{
+  width: min(520px, 92vw);
+  background: #0b0b0b;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+
+.modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.modal-title{
+  font-family: var(--font-mono);
+  color:#e6e6e6;
+  font-size: 0.95rem;
+}
+
+.modal-close{
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  background: #111;
+  color: #ddd;
+  font-size: 20px;
+  cursor:pointer;
+}
+
+.modal-body{
+  padding: 14px;
+  margin: 0;
+  color:#cfcfcf;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.modal-actions{
+  padding: 12px 14px 14px;
+  border-top: 1px solid #1f1f1f;
+}
+.modal-actions .btn-primary{ width:100%; }
+
 
 /* --- Screen 3: Relation --- */
 .matrix-container {
