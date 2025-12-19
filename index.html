@@ -97,6 +97,12 @@
             <h2>상호 관계도 설정</h2>
             <p class="info-text">모든 인물 간의 관계를 한 번에 정의하십시오.</p>
         </header>
+        <div class="bulk-rel">
+            <button class="btn" onclick="bulkSetAllRelationships('friend')">전부 친구</button>
+            <button class="btn" onclick="bulkSetAllRelationships('coworker')">전부 동료</button>
+            <button class="btn" onclick="bulkSetAllRelationships('neighbor')">전부 이웃</button>
+            <button class="btn danger" onclick="bulkSetAllRelationships('enemy')">전부 원수</button>
+        </div>
 
         <div class="matrix-container">
             <table class="relation-table">
