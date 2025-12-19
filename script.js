@@ -29,6 +29,17 @@ const TAG_LABEL = {
   obsessive: "집착",
   coward: "겁쟁이",
 };
+const MOVE_WEIGHTS = [
+  { value: "1f_class",   w: 4 },
+  { value: "1f_rest",    w: 4 },
+  { value: "1f_grass",   w: 3 },
+  { value: "2f_living",  w: 5 },
+  { value: "3f_play",    w: 5 },
+  { value: "3f_med",     w: 3 },
+  { value: "3f_admin",   w: 3 },
+  { value: "4f_roof",    w: 7 },
+];
+
 const BODY_TEMPLATE = {
   leftfinger: 5,
   rightfinger : 5,
@@ -105,6 +116,10 @@ const SOCIAL_EVENTS = {
   ],
 };
 
+const REVERSE_REL = {
+  mentor_of: "mentee_of",
+  mentee_of: "mentor_of",
+};
 const TAG_KEYS = Object.keys(TAG_LABEL);
 
 const TAG_EFFECT = {
@@ -138,8 +153,13 @@ const REL_OPTIONS = [
   { key: "couple", label: "부부", base: 25 },
   { key: "crush", label: "짝사랑", base: 5 },
   { key: "family", label: "가족", base: 25 },
+  { key: "neighbor", label: "이웃", base: 8  },
+  { key: "coworker", label: "동료", base: 10  },
+  { key: "mentor_of", label: "스승", base: 20  },
+  { key: "mentee_of", label: "제자", base: 20  },
   
 ];
+
 
 const ROOMS = [
   { key: "4f_roof", floor: "4F", label: "옥상", cap: 8 },
@@ -155,6 +175,8 @@ const ROOMS = [
 
   { key: "outside", floor: "OUT", label: "외부", cap: 99, dangerous: true },
 ];
+
+const BASE_VIOLENCE_CHANCE = 0.01;
 
 const GLITCH_CHARS = ["#", "&", "%", "@", "*", "!", "?", "▮", "░", "▒", "█", "¤", "±", "÷", "≠", "⌁"];
 
@@ -268,16 +290,21 @@ function snapshotLocs() {
   return aliveChars().map(c => `${c.id}:${c.loc}`).sort().join("|");
 }
 
+function logDayDivider() {
+  const dayNum = state.dayIndex + 1;
+  const wk = getWeekNumber();
+  const dow = DAYS_KO[getDayOfWeekIndex()];
+  logLine(``, "system");
+  logLine(`==================== DAY ${dayNum} : ${dow} (${wk}주차) ====================`, "dayhead");
+}
+
+
 function tickNoMovementHunger(beforeSnap, afterSnap) {
   if (beforeSnap === afterSnap) state.noMoveStreak++;
   else state.noMoveStreak = 0;
 
   if (state.noMoveStreak >= 4) {
     state.noMoveStreak = 0;
-
-    logLine(`>> [WARNING] 지배인의 굶주림이 짙어집니다.`, "warning");
-    logLine(`>> [ADMIN] "글쎄요, 그들은 당신들의 위치를 다 알아낼 것입니다."`, "warning");
-
     const v = rand(aliveChars());
     applySanLoss(v, 18);
     if (v.san <= 0) { 
@@ -296,9 +323,6 @@ function tickNoMovementHungerByFlag() {
 
   if (state.noMoveStreak >= 4) {
     state.noMoveStreak = 0;
-
-    logLine(`>> [WARNING] 지배인의 굶주림이 짙어집니다.`, "warning");
-    logLine(`>> [ADMIN] "글쎄요, 그들은 당신들의 위치를 다 알아낼 것입니다."`, "warning");
 
     const v = rand(aliveChars());
     applySanLoss(v, 18);
@@ -565,6 +589,11 @@ function setupCreationUI() {
     intOut.textContent = intSlider.value;
     intSlider.addEventListener("input", () => intOut.textContent = intSlider.value);
   }
+  document.getElementById("bulk-friend")?.addEventListener("click", () => bulkSetAllRelationships("friend"));
+  document.getElementById("bulk-neighbor")?.addEventListener("click", () => bulkSetAllRelationships("neighbor"));
+  document.getElementById("bulk-coworker")?.addEventListener("click", () => bulkSetAllRelationships("coworker"));
+  document.getElementById("bulk-enemy")?.addEventListener("click", () => bulkSetAllRelationships("enemy"));
+
 
   // RESISTANCE slider (formerly sanity)
   const sanSlider = $("#input-sanity"); 
@@ -723,13 +752,21 @@ function importDraft(e) {
 function buildRelationMatrix() {
   const table = document.querySelector(".relation-table");
   if (!table) return;
+
   const thead = table.querySelector("thead");
   const tbody = table.querySelector("tbody");
   if (!thead || !tbody) return;
 
   const chars = state.draftChars;
-  state.relations = {};
+  state.relations ??= {};
 
+  const SYMMETRIC_RELS = new Set([
+    "unknown","friend","enemy","lover","ex","couple","family","neighbor","coworker"
+  ]);
+  const ASYMMETRIC_RELS = new Set(["mentor_of", "mentee_of"]);
+
+  
+  thead.innerHTML = "";
   const headRow = document.createElement("tr");
   headRow.innerHTML = `<th>주체 \\ 대상</th>`;
   chars.forEach(c => {
@@ -737,83 +774,71 @@ function buildRelationMatrix() {
     th.textContent = c.name;
     headRow.appendChild(th);
   });
-  thead.innerHTML = "";
   thead.appendChild(headRow);
 
   tbody.innerHTML = "";
   const selectMap = {};
-  const SYMMETRIC_RELS = new Set(["unknown","friend","enemy","lover","ex","couple","family"]);
-  chars.forEach((a) => {
+
+  for (const a of chars) {
     const tr = document.createElement("tr");
+
     const fixed = document.createElement("td");
     fixed.className = "fixed-col";
     fixed.textContent = a.name;
     tr.appendChild(fixed);
 
-    chars.forEach((b) => {
+    for (const b of chars) {
       const td = document.createElement("td");
+
       if (a.id === b.id) {
         td.className = "disabled";
         td.textContent = "-";
-      } else {
-        const sel = document.createElement("select");
-        const keyAB = `${a.id}:${b.id}`;
-        const keyBA = `${b.id}:${a.id}`;
-        selectMap[keyAB] = sel;
+        tr.appendChild(td);
+        continue;
+      }
 
-        // 저장된 값 있으면 반영
-        if (state.relations[keyAB]) sel.value = state.relations[keyAB];
+      const keyAB = `${a.id}:${b.id}`;
+      const keyBA = `${b.id}:${a.id}`;
 
-        REL_OPTIONS.forEach(opt => {
-          const o = document.createElement("option");
-          o.value = opt.key;
-          o.textContent = opt.label;
-          sel.appendChild(o);
-        });
+      const sel = document.createElement("select");
+      REL_OPTIONS.forEach(opt => {
+        const o = document.createElement("option");
+        o.value = opt.key;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+      });
 
+      sel.value = state.relations[keyAB] || "unknown";
+      selectMap[keyAB] = sel;
 
+      sel.addEventListener("change", () => {
+        const v = sel.value;
+        state.relations[keyAB] = v;
 
-selectMap[keyAB] = sel;
+        if (ASYMMETRIC_RELS.has(v)) {
+          const rv = REVERSE_REL[v] || "unknown";
+          state.relations[keyBA] = rv;
 
-if (state.relations[keyAB]) sel.value = state.relations[keyAB];
-
-sel.addEventListener("change", () => {
-  const v = sel.value;
-
-
-  state.relations[keyAB] = v;
-
- 
-  if (!SYMMETRIC_RELS.has(v)) return;
-
-  state.relations[keyBA] = v;
-  const other = selectMap[keyBA];
-  if (other && other.value !== v) other.value = v;
-});
-
-
-        td.appendChild(sel);
-       
-        const other = selectMap[keyBA];
-        if (other) {
-          
-          const saved = state.relations[keyAB] || state.relations[keyBA];
-          const v = saved || sel.value;
-
-          sel.value = v;
-          other.value = v;
-
-          state.relations[keyAB] = v;
-          state.relations[keyBA] = v;
+          const other = selectMap[keyBA];
+          if (other && other.value !== rv) other.value = rv;
+          return;
         }
 
-      }
+        if (SYMMETRIC_RELS.has(v)) {
+          state.relations[keyBA] = v;
+          const other = selectMap[keyBA];
+          if (other && other.value !== v) other.value = v;
+        }
+      });
+
+      td.appendChild(sel);
       tr.appendChild(td);
-    });
+    }
 
     tbody.appendChild(tr);
-  });
+  }
 }
+
 
 /* -------------------------------
   8) GAME START
@@ -868,8 +893,8 @@ async function startGameFromDraft() {
   state.initialCount = N;
   state.totalWeeks = (N <= 10) ? 4 
   : (N <= 20) ? 8 
-  : (N < 30) ? 12 
-  : (N < 40) ? 16 
+  : (N <= 30) ? 12 
+  : (N <= 40) ? 16 
   : Math.ceil(N * 0.4);
 
   showScreen("#screen-game");
@@ -881,18 +906,38 @@ async function startGameFromDraft() {
   renderLocationTerminal();
 
   rollWeatherForToday(true);
-  logLine(`>> [SYSTEM] DAY 1 시작.`, "system");
+  logDayDivider();
+
 
   state.dynamicRel = {}; 
   for (const a of state.chars) {
-    for (const b of state.chars) {
-      if (a.id === b.id) continue;
-      const rk = getRelKey(a.id, b.id);
-      if (rk === "lover" || rk === "couple" || rk === "family") {
-        state.dynamicRel[`${a.id}:${b.id}`] = rk;
-      }
+  for (const b of state.chars) {
+    if (a.id === b.id) continue;
+
+    const keyAB = `${a.id}:${b.id}`;
+    const keyBA = `${b.id}:${a.id}`;
+    const rk = getRelKey(a.id, b.id);
+
+    if (
+      rk === "lover" ||
+      rk === "couple" ||
+      rk === "family" ||
+      rk === "neighbor" ||
+      rk === "coworker"
+    ) {
+      state.dynamicRel[keyAB] = rk;
+      state.dynamicRel[keyBA] = rk;
+    }
+
+    else if (rk === "mentor_of" || rk === "mentee_of") {
+      state.dynamicRel[keyAB] = rk;
+      state.dynamicRel[keyBA] = (rk === "mentor_of")
+        ? "mentee_of"
+        : "mentor_of";
     }
   }
+}
+
 }
 /* -------------------------------
   9) ADMIN INTRO
@@ -903,11 +948,14 @@ async function playAdminIntro() {
 
   const lines = [
     `[ADMIN] 환영합니다, 이곳은 &▮░@!▒░!█ 공간입니다.`,
-    `[ADMIN] 해당 시설에선 무엇이든 자유롭게 하셔도 괜찮습니다. 몇가지 규칙만 잘 지키신다면요.`,
-    `[ADMIN] 규칙은 발설이 금지되어 있으니, 행동을 조심하시는게 좋을 것입니다. 아, 단 한가지 말씀드리자면...`,
-    `[ADMIN] 매주 일요일 밤, 이곳의 지배인을 위해 한명이 희생해야 한다는 것입니다.`,
-    `[ADMIN] 그래도 너무 걱정하지 마세요, 여러분은 ${N}명이니, ${weeks}주만 이곳에서 지내시면 됩니다.`,
-    `[ADMIN] 그럼, 문제가 발생하면 언제든지 편히 문의주시길.`,
+    `[ADMIN] 이곳의 시설은 ▮▮!▒░를 위해 제작되었으며, 여러분은 ▮▮!▒░입니다.`,
+    `[ADMIN] 이 시설에서 자유롭게 행동하셔도 무관하나, 눈에 띄는 행동은 자제하는것이 좋습니다.`,
+    `[ADMIN] 독특한 분들이니 각 층마다 주의를 새롭게 하는 것이 좋을겁니다. 뭐, 자신의 목숨이 가볍다면 모를까. 어차피 제가 책임지진 않으니까요. `,
+    `[ADMIN] 아. 매주 일요일 밤, 이곳의 지배인을 위해 한명이 희생해야 한다는 점은 인지해주세요.`,
+    `[ADMIN] 무료로 시설을 이용하는 대가라고 생각해주세요. 여러분은 주머니엔 지불할 수 있는 것이 없는걸요? 하하.`
+    ,`[ADMIN] 여러분은 ${N}명이니, ▮▮!▒░를 위해 ${weeks}주만 이곳에서 지내주시면 됩니다.`,
+    `[ADMIN] 제 소개가 늦었군요. 저는 이곳의 관리인입니다. 도움이 필요하다면 언제든지 저에게 편히 문의주시면 됩니다.`,
+    `[ADMIN] 그럼 오늘은 편히 쉬시길.`,
   ];
 
   for (const s of lines) {
@@ -1192,7 +1240,7 @@ async function tickBreakups() {
 
   if (!lowTrust && !veryLowSan) return;
 
-  if (veryLowSan && chance(0.55)) {
+  if (veryLowSan && chance(0.95)) {
    
     const leaver = a.san <= 20 ? a : b;
     const other = leaver.id === a.id ? b : a;
@@ -1240,6 +1288,66 @@ async function tickBreakups() {
 --------------------------------*/
 function isLoverRel(rk) { return rk === "lover" || rk === "couple"; }
 function isFamilyRel(rk) { return rk === "family"; }
+const VIOLENCE_OUTCOME = {
+  INJURY_WEIGHT: 75,  
+  DEATH_WEIGHT: 10,   
+  NOTHING_WEIGHT: 15,
+};
+function isCouple(a, b) {
+  if (!a || !b) return false;
+  const r1 = state.relations?.[`${a.id}:${b.id}`];
+  const r2 = state.relations?.[`${b.id}:${a.id}`];
+  return (
+    r1 === "lover" || r1 === "couple" ||
+    r2 === "lover" || r2 === "couple"
+  );
+}
+
+
+const INJURY_SEVERITY = {
+  LIGHT: 55,    
+  MAJOR: 35,    
+  MUTILATE: 10,  
+};
+
+function weightedPick(entries) {
+  const total = entries.reduce((a, e) => a + e.w, 0);
+  let r = Math.random() * total;
+  for (const e of entries) {
+    r -= e.w;
+    if (r <= 0) return e.v;
+  }
+  return entries[entries.length - 1].v;
+}
+
+
+function bulkSetAllRelationships(relKey) {
+  const ids = state.draftChars?.map(c => c.id) ?? [];
+  if (ids.length < 2) return;
+
+  state.relations ??= {};
+
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = 0; j < ids.length; j++) {
+      if (i === j) continue;
+      state.relations[`${ids[i]}:${ids[j]}`] = relKey;
+    }
+  }
+
+  if (typeof buildRelationMatrix === "function") buildRelationMatrix();
+}
+
+
+
+function applyTagBias(base, p, rules = []) {
+  let v = base;
+  for (const r of rules) {
+    if (!r || !r.tag) continue;    
+    if (hasTag(p, r.tag)) v += r.delta;
+  }
+  return Math.max(0, Math.min(1, v));
+}
+
 
 function tickAfterOutside() {
   for (const c of aliveChars()) {
@@ -1382,16 +1490,40 @@ async function eventRumor() {
   if (!chance(0.84)) return;
 
   const markMissingIfBroken = (c) => {
-    if (!c?.alive) return true;          // 이미 죽었으면 더 진행 X
-    if ((c.san ?? 0) > 0) return false;  // 아직 버팀
-    c.san = 0;
-    c.alive = false;
-    c.deathType = "missing";
+    if (!c?.alive) return true;
+    if ((c.san ?? 0) > 0) return false;
+    c.san = 0; c.alive = false; c.deathType = "missing";
     logLine(`>> [SYSTEM] ${c.name}은(는) 더 버티지 못하고 밖으로 걸어 나갔습니다. (실종)`, "warning");
     return true;
-  }
+  };
+
   const liars = alive.filter(c => c.tagKey === "liar");
   const spreader = liars.length ? rand(liars) : rand(alive);
+
+  if (spreader.tagKey === "logical") {
+    const others = alive.filter(x => x.id !== spreader.id);
+    if (!others.length) return;
+
+    const n = Math.min(3, others.length);               
+    const targets = shuffle([...others]).slice(0, n);
+
+    logLine(`${spreader.name}: "…지금은 소문보다, 서로 믿을 근거가 필요해."`, "event");
+
+    for (const t of targets) {
+      const gain = 2 + Math.floor(Math.random() * 4);  
+      applyTrust(t, +gain);
+
+      if (chance(0.35)) applySanHeal(t, 2);
+
+      logLine(`>> [SYSTEM] ${spreader.name}의 행동이 ${t.name}의 신뢰를 지탱한다. (TRUST +${gain})`, "system");
+
+      if (markMissingIfBroken(t)) return;
+      await sleep(60);
+    }
+
+    applyTrust(spreader, +2);
+    return;
+  }
 
   const targets = alive.filter(c => c.id !== spreader.id);
   const target = rand(targets);
@@ -1414,35 +1546,30 @@ async function eventRumor() {
   const detected = chance(detectP);
 
   if (success && !detected) {
-    const loss = 6 + Math.floor(Math.random() * 8); // 6~13
+    const loss = 6 + Math.floor(Math.random() * 8);
     applyTrust(target, -loss);
     applySanLoss(target, 6);
-
     if (markMissingIfBroken(target)) return;
-
     logLine(`>> [SYSTEM] ${target.name}에 대한 소문이 퍼졌다. (TRUST -${loss})`, "warning");
     applyTrust(spreader, +2);
     return;
   }
 
   if (detected) {
-    const penalty = 8 + Math.floor(Math.random() * 8); // 8~15
+    const penalty = 8 + Math.floor(Math.random() * 8);
     applyTrust(spreader, -penalty);
     applySanLoss(spreader, 6);
-
     logLine(`>> [SYSTEM] 거짓말이 들켰다. ${spreader.name}의 신뢰가 무너진다. (TRUST -${penalty})`, "warning");
-
     if (markMissingIfBroken(spreader)) return;
-
     applyTrust(target, +3);
     return;
   }
 
   logLine(`>> [SYSTEM] 소문은 퍼지지 않았다. 하지만 찝찝함은 남는다.`, "system");
   applySanLoss(spreader, 4);
-
   if (markMissingIfBroken(spreader)) return;
 }
+
 
 function tickSanityStages() {
   for (const c of aliveChars()) {
@@ -1461,7 +1588,7 @@ function checkSoloRule() {
     const c = alive[0];
     c.alive = false;
     c.deathType = "missing";
-    logLine(`[ADMIN] "혼자는… 안 됩니다."`, "warning");
+    logLine(`[ADMIN] "혼자는 안 됩니다."`, "warning");
     logLine(`>> [SYSTEM] ${c.name}은(는) 관리자에게 끌려가 더는 돌아오지 않았습니다`, "warning");
   }
 }
@@ -1469,6 +1596,36 @@ function checkSoloRule() {
 /* -------------------------------
   17) DAILY EVENTS
 --------------------------------*/
+
+function pickWeighted(items) {
+  let total = 0;
+  for (const it of items) total += it.w;
+
+  let r = Math.random() * total;
+  for (const it of items) {
+    r -= it.w;
+    if (r <= 0) return it.value;
+  }
+  return items[items.length - 1].value;
+}
+
+async function maybeTriggerLocationEvent(char) {
+  const isRoof = char.loc === "4f_roof";
+  const p = isRoof ? getRoofEventChance() : getBaseEventChance();
+
+  if (Math.random() >= p) return;
+
+  if (isRoof) {
+    await eventRooftop(char);
+  } else {
+    await eventGeneric(char);
+  }
+}
+
+
+function chooseMoveTarget() {
+  return pickWeighted(MOVE_WEIGHTS);
+}
 
 
 async function enter_3f_med(c) {
@@ -1525,6 +1682,7 @@ async function enter_any_1f(c) {
       const healSan = 8 + Math.floor(Math.random()*8);
       c.hp = clamp(c.hp + healHp, 0, 100);
       applySanHeal(c, healSan);
+      logLine(`>> [ADMIN] 상태가 많이 안 좋은 것 같습니다. 도와드리죠.`, "event");
       logLine(`>> [SYSTEM] 치료 성공 (HP +${healHp}, SAN +${healSan})`, "event");
     } else {
       logLine(`>> [SYSTEM] 관리인이 ${c.name}의 손목을 잡았다.`, "warning");
@@ -1549,7 +1707,7 @@ async function enter_any_1f(c) {
 async function onEnterRoom(c, from, to) {
   if (!c?.alive) return;
   if (from === to) return;
-  state.movedToday = true
+  state.movedToday = true;
   if (to === "2f_living") await enter_2f_living(c);
   if (to === "1f_class")  await enter_1f_class(c);
   if (to === "3f_play")   await enter_3f_play(c);
@@ -1613,7 +1771,7 @@ async function eventBlackDoorOnRoof(c) {
   await logGlitchLine(">>", `문 안쪽은 텅 비어 있다. 보이는 것은 무엇도 없다`, "warning", 0.75);
   await logGlitchLine(">>", `${glitchText("당신은 무엇입니까?", 0.85)}`, "warning", 0.85);
 
-  const partsToLose = 5 + Math.floor(Math.random() * 4); // 5~8개
+  const partsToLose = 5 + Math.floor(Math.random() * 4); 
   await removeMassParts(c, partsToLose, { hpDmg: 18, sanAmt: 16, reason: "소멸" });
 
   if (c.alive) {
@@ -1734,7 +1892,7 @@ async function eventRoofMerchant(c) {
   }
 
   logLine(`>> [SYSTEM] 노란 상인이다. 세상이 노랗게 변한다.`, "warning");
-  await logGlitchLine(">>", `그래서 그런가, 당신 또한 노란 무언가가 되었습니다.`, "warning", 0.65);
+  await logGlitchLine(">>", `그래서 그런가, ${c.name} 또한 노란 무언가가 되었습니다.`, "warning", 0.65);
   c.alive = false;
   c.deathType = "missing";
   renderCards(); renderLocationTerminal(); endIfAllDead();
@@ -1905,33 +2063,322 @@ async function eventLivingRoomSky(c) {
     }
   }
 }
+function hasTag(c, key) {
+  return c?.tagKey === key;
+}
+
+function luck01(c) {
+  return clamp((c?.luckScore ?? 50) / 100, 0, 1);
+}
+
+
+function intFactor(c) {
+  
+  const i = clamp(c?.int ?? 5, 1, 10);
+  return (10 - i) / 9; 
+}
+
+function getPairTrust(a, b) {
+
+  const tA = clamp(a?.trust ?? 0, TRUST_MIN, TRUST_MAX);
+  const tB = clamp(b?.trust ?? 0, TRUST_MIN, TRUST_MAX);
+  return Math.round((tA + tB) / 2);
+}
+function sanityFactor(c){ const san = Number.isFinite(c?.san) ? c.san : 100; return Math.min(1, Math.max(0, (100 - san) / 100)); }
+
+function violenceChanceFor(attacker, target) {
+  let p = BASE_VIOLENCE_CHANCE;
+
+  if (attacker.loc === target.loc) p += 0.06;
+
+  p += 0.18 * sanityFactor(attacker);
+  p += 0.12 * intFactor(attacker);
+
+ 
+  if (hasTag(attacker, "impulsive")) p += 0.06;
+  if (hasTag(attacker, "reckless"))  p += 0.08;
+  if (hasTag(attacker, "paranoid"))  p += 0.06;
+
+  if (hasTag(attacker, "logical")) p -= 0.08;
+  if (hasTag(attacker, "calm"))    p -= 0.06;
+  if (hasTag(attacker, "kind"))    p -= 0.04;
+
+ 
+  const t = getPairTrust(attacker, target);
+  if (t <= -60) p += 0.08;
+  else if (t <= -30) p += 0.04;
+
+  p += (0.5 - luck01(attacker)) * 0.05;
+
+  if (isCouple(attacker, target)) {
+    p *= 0.15;   
+  }
+
+  return clamp(p, 0, 0.45);
+}
+
+function resolveViolenceOutcome(attacker, target) {
+ 
+  const sf = sanityFactor(attacker);
+  const inf = intFactor(attacker);
+
+  const outcome = weightedPick([
+    { v: "injury", w: 74 },
+    { v: "death",  w: 1 },
+    { v: "none",   w: 25},
+  ]);
+
+  if (outcome === "none" && Math.random() < (0.20 + 0.30 * sf + 0.20 * inf)) return "injury";
+  return outcome;
+}
+
+function resolveInjurySeverity(attacker, target) {
+
+  let light = 55, major = 35, mutil = 10;
+
+  if (hasTag(attacker, "reckless")) { major += 8; mutil += 5; light -= 13; }
+  if (hasTag(attacker, "impulsive")) { major += 5; mutil += 3; light -= 8; }
+
+  const L = luck01(target);
+  if (L < 0.3) { major += 6; mutil += 3; light -= 9; }
+
+  light = Math.max(10, light);
+  major = Math.max(5, major);
+  mutil = Math.max(1, mutil);
+
+  return weightedPick([
+    { v: "light",    w: light },
+    { v: "major",    w: major },
+    { v: "mutilate", w: mutil },
+  ]);
+}
+
+async function applyViolenceInjury(target, sev, attackerName = "누군가") {
+  if (!target?.alive) return;
+
+  if (sev === "light") {
+    target.hp = clamp((target.hp ?? 100) - (6 + Math.floor(Math.random() * 8)), 0, 100);
+    applySanLoss(target, 8);
+    logLine(`>> [SYSTEM] ${target.name}은(는) 타박상을 입었습니다. (HP 감소)`, "warning");
+  } 
+  else if (sev === "major") {
+ 
+    logLine(`>> [WARNING] ${target.name}에게 큰 부상이 발생합니다.`, "warning");
+    await removeRandomBodyPart(target, { hpDmg: 18, sanAmt: 14, reason: "절단" });
+  } 
+  else {
+    
+    logLine(`>> [WARNING] ${target.name}의 신체가 찢깁니다.`, "warning");
+    await removeMassParts(target, 2 + Math.floor(Math.random() * 2), { hpDmg: 16, sanAmt: 14, reason: "절단" });
+  }
+
+  if (target.hp <= 0 && target.alive) {
+    target.alive = false;
+    target.deathType = "missing";
+    logLine(`>> [ADMIN] ${target.name}씨는 제가 데려가는것이 좋겠네요. 간식거리로. (사망)`, "warning");
+  }
+}
+
 async function tickViolenceBySan() {
   const alive = aliveChars();
   if (alive.length < 2) return;
-  const c = rand(alive);
 
-  if (c.san > 25) return;
-  if (!chance(0.25)) return;
+  const groups = {};
+  for (const c of alive) (groups[c.loc] ??= []).push(c);
 
-  const others = alive.filter(x => x.id !== c.id);
-  const v = rand(others);
+  for (const loc in groups) {
+    const arr = groups[loc].filter(x => x.alive);
+    if (arr.length < 2) continue;
 
-  logLine(`>> [SYSTEM] ${c.name}는 알 수 없는 분노가 자신을 가득 채웁니다`, "warning");
-  logLine(`${c.name}: "시끄러워."`, "event");
+    const attempts = (arr.length >= 4) ? 2 : 1;
 
-  const dmg = 10 + Math.floor(Math.random() * 16); // 10~25
-  v.hp = clamp(v.hp - dmg, 0, 100);
-  applyTrust(v, -8);
-  applyTrust(c, -5);
+    for (let k = 0; k < attempts; k++) {
+      const attacker = rand(arr.filter(x => x.alive));
+      const target = rand(arr.filter(x => x.alive && x.id !== attacker?.id));
+      if (!attacker || !target) continue;
 
-  logLine(`>> [SYSTEM] 폭력 발생: ${v.name} (HP -${dmg})`, "warning");
+  
+      let p = violenceChanceFor(attacker, target);
 
-  if (v.hp <= 0) {
-    v.alive = false;
-    v.deathType = "missing";
-    logLine(`>> [ADMIN] 이런, ${v.name}씨는 제가 데려가겠습니다.`, "warning");
+      const couple = isCouple(attacker, target);
+
+    
+      if (couple) {
+        p *= 0.8; 
+      }
+
+
+      const mediators = arr.filter(c =>
+        c.tagKey === "logical" &&
+        c.id !== attacker.id &&
+        c.id !== target.id &&
+        c.alive
+      );
+
+      const medP = couple ? 0.55 : 0.40;
+
+      if (mediators.length && chance(medP)) {
+        const m = rand(mediators);
+        logLine(`${m.name}: "지금 이건 감정적인 반응이야. 멈춰."`, "event");
+
+        applySanHeal(attacker, 3);
+
+        applyTrust(attacker, +1);
+
+        applyTrust(m, +1);
+
+        continue;
+      }
+
+      if (!chance(p)) continue;
+
+      const line = pickViolenceLine(attacker, target);
+      await logGlitchLine("", `${attacker.name}: "${glitchText(line, 0.25)}"`, "event", 0.30);
+      await sleep(120);
+      logLine(`${target.name}: "${pickVictimLine(attacker, target)}"`, "event");
+      await sleep(120);
+
+      const outcome = resolveViolenceOutcome(attacker, target);
+
+      if (outcome === "none") {
+        logLine(`>> [SYSTEM] 위협적인 행동이 있었지만 큰 일은 없었습니다.`, "system");
+        applyTrust(attacker, -2);
+        applyTrust(target, -2);
+
+     
+        if (couple) {
+          applyTrust(attacker, -3);
+          applyTrust(target, -3);
+        }
+        continue;
+      }
+
+      if (outcome === "death") {
+        target.alive = false;
+        target.deathType = "missing";
+
+        logLine(`>> [WARNING] ${attacker.name}이(가) ${target.name}의 목숨을 끊었습니다.`, "warning");
+
+        applyTrust(attacker, -10);
+
+        if (couple) {
+          applyTrust(attacker, -20);
+          
+          applyTrust(target, -20);
+        }
+
+        renderCards(); renderLocationTerminal();
+        if (endIfAllDead()) return;
+        continue;
+      }
+
+      const sev = resolveInjurySeverity(attacker, target);
+      logLine(`>> [WARNING] 폭력 발생: ${target.name} (${sev})`, "warning");
+      await applyViolenceInjury(target, sev, attacker.name);
+
+      if (couple) {
+        applyTrust(attacker, -12);
+        applyTrust(target, -12);
+      }
+
+      renderCards(); renderLocationTerminal();
+      if (endIfAllDead()) return;
+    }
   }
 }
+
+function pickVictimLine(attacker, target) {
+  const base = [
+    "아니, 지금 무슨—",
+    "야, 뭐 하는 거야?",
+    "잠깐… 진정해!",
+    "그만해! 미쳤어?",
+    "왜 갑자기 그러는데!",
+    "말로 해, 말로!",
+  ];
+  if ((target.san ?? 100) <= 35) base.push("싫어… 오지 마…", "그만… 제발…");
+  return rand(base);
+}
+
+function pickViolenceLine(attacker, target) {
+  const sf = sanityFactor(attacker); 
+  const lowSan = (attacker.san ?? 100) <= 35;
+
+  
+  const t = (typeof attacker.trust === "number") ? attacker.trust : 0;
+
+
+  const tag = attacker.tagKey;
+
+  const base = [
+    "아… 진짜. 짜증나게 하지 마.",
+    "그만 좀 해. 숨 막혀.",
+    "계속 그러면… 나도 모르게 손이 나가.",
+    "조용히 해. 지금은 그럴 기분 아니야.",
+    "왜 자꾸 거슬리게 굴어?",
+    "하… 딱 한 번만 더 그러면 끝이야.",
+    "너 진짜 선 넘는다.",
+    "그 눈빛, 그 표정… 다 거슬려.",
+  ];
+
+  const harsh = [
+    "입 닥쳐. 지금은.",
+    "그만하라고 했지.",
+    "너 때문에 망가져. 다.",
+    "네가 먼저 시작한 거야.",
+    "웃지 마. 그게 더 역겨워.",
+    "가만히 있으면 반이라도 가지…",
+  ];
+
+  const paranoid = [
+    "너… 일부러 그러지?",
+    "또 신호 주는 거 봤어. 나만 모를 줄 알았나.",
+    "너랑 그쪽이랑 한패지.",
+    "지금 나 테스트하는 거야?",
+    "다 알아. 너희가 뭘 하는지.",
+  ];
+
+  const logical = [
+    "비효율적이야. 그 행동.",
+    "내 집중을 방해하지 마.",
+    "경고했지. 반복하면 결과가 생겨.",
+    "규칙을 지켜. 최소한.",
+  ];
+
+  const impulsive = [
+    "아 몰라, 짜증나!",
+    "그만! 지금 당장!",
+    "하… 손이 먼저 나가겠네.",
+    "나 참는 거 한계야.",
+  ];
+
+  const kindBroken = [
+    "미안… 미안한데, 지금은 못 참겠어.",
+    "나도 이러고 싶지 않은데…",
+    "그만해줘. 부탁이야.",
+  ];
+
+  let pool = [...base];
+
+  if (sf >= 0.65 || lowSan) pool = pool.concat(harsh);
+  if (tag === "paranoid") pool = pool.concat(paranoid);
+  if (tag === "logical") pool = pool.concat(logical);
+  if (tag === "impulsive") pool = pool.concat(impulsive);
+  if (tag === "kind" && (sf >= 0.4)) pool = pool.concat(kindBroken);
+
+  if (t <= -40) pool = pool.concat(["너는… 애초에 믿을 수가 없어.", "역시 너였네."]);
+
+  if (chance(0.25)) {
+    pool = pool.concat([
+      `${target.name}, 거슬려. 정말.`,
+      `${target.name}… 나 건드리지 마.`,
+      `${target.name}, 지금 그 말… 취소해.`,
+    ]);
+  }
+
+  return rand(pool);
+}
+
 
 state.flags ??= {};
 state.flags.restRoomSafe = false;
@@ -2040,7 +2487,7 @@ async function eventWhiteDoorOn2F(c) {
 
   const ans = await askChoice({
     title: "[WARNING]",
-    body: `흰 문으로 들어가겠습니까?`,
+    body: `${c.name}은/는 흰 문으로 들어가겠습니까?`,
     options: [
       { label: "들어간다", value: "in" },
       { label: "가지 않는다", value: "run" },
@@ -2061,7 +2508,7 @@ async function eventWhiteDoorOn2F(c) {
 
   const wait = await askChoice({
     title: "[CHOICE]",
-    body: `안에서 몇 초를 세고 나오겠습니까?`,
+    body: `${c.name}은/는 안에서 몇 초를 세고 나오겠습니까?`,
     options: [
       { label: "2초", value: 2 },
       { label: "4초", value: 4 },
@@ -2168,7 +2615,7 @@ async function eventNurseOn3FMed(c) {
   }
 
   if (ans === "heal") {
-    await logGlitchLine("간호사: ", `치료? 좋아. 대신...`, "warning", 0.65);
+    await logGlitchLine("간호사: ", `치료? 그래. 내 방식대로 너를 고쳐줄게`, "warning", 0.65);
     const part = pickExistingPart(c, ["tongue","leftEye","rightEye","ribs","teeth","leftfinger", "rightfinger"]);
     if (part) await removeBodyPart(c, part, { hpDmg: 18, sanAmt: 14, reason: "채취" });
    
@@ -2379,7 +2826,7 @@ async function eventPostMoveUnease(group, target) {
   logLine(`>> [SYSTEM] ${roomLabel(target)}에 도착했는데… 인원이 맞지 않는 기분이 든다.`, "warning");
   const ans = await askChoice({
     title: "[WARNING]",
-    body: `누가 없어진 건지 떠올리겠습니까?`,
+    body:  `당신은 누가 없어진 건지 떠올리겠습니까?`,
     options: [
       { label: "떠올리지 않는다", value: "no" },
       { label: "떠올린다", value: "yes" },
@@ -2396,7 +2843,7 @@ async function eventPostMoveUnease(group, target) {
   }
 }
 async function eventCoLocatedChat() {
-  if (!chance(0.35)) return;
+  if (!chance(0.55)) return;
 
   const alive = aliveChars();
   const byRoom = {};
@@ -2424,13 +2871,13 @@ function findLeaderAlive() {
 
 async function tryLeaderMediation(leader, a, b, severity = "light") {
   if (!leader) return false;
-  // 리더가 중재할 확률: 심한 말다툼일수록 더 자주 개입
+
   const p = (severity === "hard") ? 0.55 : 0.35;
   if (!chance(p)) return false;
 
-  await logGlitchLine(">>", `${leader.name}: "${glitchText("그만. 여기선 싸우면 다 죽어.", 0.18)}"`, "event", 0.18);
+  logLine(`${leader.name}: 그만. 여기선 싸우면 다 죽어.`, "system");
 
-  // 중재 효과: 당사자들의 신뢰/산치 약간 회복(또는 손실 감소)
+
   applyTrust(a, +2);
   applyTrust(b, +2);
   applySanHeal(a, 2);
@@ -2594,7 +3041,7 @@ async function eventDontSayDream(c) {
     logLine(`>> [SYSTEM] 발언 감지.`, "warning");
     c.alive = false;
     c.deathType = "missing"; 
-    logLine(`>> [SYSTEM] ${c.name}은(는) 말이 끝나기도 전에 신호가 끊겼습니다. (실종)`, "warning");
+    logLine(`>> [SYSTEM] ${c.name}은(는) 말이 끝나기도 전에 녹아버렸습니다. (실종)`, "warning");
 
     renderCards();
     renderLocationTerminal();
@@ -2666,7 +3113,7 @@ async function runOneChoiceEvent(c) {
 
   const pool = [];
 
-  const moveWeight = 4; 
+  const moveWeight = 7; 
   for (let i = 0; i < moveWeight; i++) pool.push(choiceMoveGroup);
 
   pool.push(choiceOutside);
@@ -2777,7 +3224,7 @@ async function choiceMoveGroup() {
     if (x.san <= 30) w += 1;
     for (let i = 0; i < w; i++) weighted.push(x);
   }
-  const k = Math.min(alive.length, 1 + Math.floor(Math.random() * 3));
+  const k = Math.min(alive.length, 1 + Math.floor(Math.random() * 4));
   const group = shuffle([...new Set(weighted)]).slice(0, k);
 
   const moveTargets = [
@@ -2791,7 +3238,7 @@ async function choiceMoveGroup() {
   const stuck = group.filter(x => isImmobile(x));
 
   if (!movable.length) {
-    stuck.forEach(s => logLine(`${s.name}: "미안, 가고 싶어도 움직이질 않네."`, "warning"));
+    stuck.forEach(s => logLine(`${s.name}: "미안, 같이 가고 싶어도 움직이질 않네."`, "warning"));
     return;
   }
 
@@ -2818,22 +3265,29 @@ async function choiceMoveGroup() {
  
     state.refuseMoveStreak = (state.refuseMoveStreak || 0) + 1;
 
-    if (state.refuseMoveStreak >= 4) {
-      logLine(`>> [SYSTEM] 이런, 그들이 우리의 위치를 알아버렸습니다.`, "warning");
-      await sleep(500);
-      logLine(`[ADMIN] "체스 말도 움직여야 게임이 되는 법입니다. 쓸모가 없군요."`, "warning");
+   if (state.refuseMoveStreak >= 4) {
+    state.refuseMoveStreak = 0;
+    
+    await logLine(`>> 깜빡`, "warning");
+    await sleep(120);
+    await logLine(`>> [SYSTEM] 잠시 누군가가 이곳을 다녀갔습니다.`, "system");
+    await sleep(120);
+    await logLine(`>> [ADMIN] 음, 당신의 신체가 전부 남아있는지 확인하시겠습니까. `, "system");
+    await sleep(200);
+    await logLine(`>> [ADMIN] ......... `, "system");
+
+    const aliveNow = aliveChars();
+    for (const c of aliveNow) {
+      const cnt = 2 + Math.floor(Math.random() * 4); 
       
-      // 전원 사망 처리
-      aliveChars().forEach(c => {
-        c.alive = false;
-        c.deathType = "missing";
-      });
-      
-      renderCards();
-      renderLocationTerminal();
-      showEnding(false); 
-      return; 
+      await removeMassParts(c, cnt, { hpDmg: 14, sanAmt: 10, reason: "도난" });
     }
+
+    renderCards();
+    renderLocationTerminal();
+    endIfAllDead(); 
+    return;
+  }
 
     logLine(`>> [SYSTEM] 이동이 거부되었습니다.`, "system");
     movable.forEach(c => applyTrust(c, -1));
@@ -2841,16 +3295,18 @@ async function choiceMoveGroup() {
   } 
   
   else {
-    if (state.refuseMoveStreak > 0) {
-  
-    }
     state.refuseMoveStreak = 0; 
     
     for (const p of movable) {
-      const from = p.loc;
-      p.loc = target;
-      await onEnterRoom(p, from, target);
-      if (!p.alive) break;
+    if (!p.alive) continue;
+
+  if (afterMoveCheckRunaway(p)) continue;
+
+  const from = p.loc;
+  p.loc = target;
+
+  await onEnterRoom(p, from, target);
+  if (!p.alive) break;
     }
     logLine(`>> [SYSTEM] ${names} 이동: ${roomLabel(target)}`, "event");
     await sleep(250);
@@ -2869,6 +3325,48 @@ async function choiceMoveGroup() {
     renderLocationTerminal();
   }
 }
+const afterMoveFearRefusal = afterMoveCheckRunaway;
+
+function afterMoveCheckRunaway(p) {
+  if (!p.alive) return true;
+  if (isImmobile(p)) return false;
+  
+  let pr = 0.03;
+
+  pr = applyTagBias(pr, p, [
+    { tag:"coward", delta:+0.18 },
+    { tag:"paranoid", delta:+0.08 },
+    { tag:"impulsive", delta:+0.06 },
+    { tag:"leader", delta:-0.03 },
+    { tag:"logical", delta:-0.02 },
+    { tag: "calm", delta: -0.04 },
+  ]);
+
+  pr += 0.25 * sanityFactor(p);
+  pr += (0.5 - luck01(p)) * 0.10;
+  pr = clamp(pr, 0, 0.6);
+const FEAR_REFUSAL_LINES = [
+  "알 수 없는 공포 질려 발걸음을 떼지 못했습니다.",
+  "순간 숨이 막혀, 그 자리에 굳어버려 움직이지 못했습니다.",
+  "뒤따르려 했지만, 몸이 말을 듣지 않았습니다.",
+  "불안이 엄습해 따라갈 수 없었습니다.",
+  "그곳으로 가는 것은 위험하다고 느꼈습니다.",
+  "그녀를 믿지 못해 뒤로 도망쳤습니다.",
+];
+
+
+
+  if (Math.random() < pr) {
+     
+    logLine(
+  `>> [SYSTEM] ${p.name}은(는) ${rand(FEAR_REFUSAL_LINES)}`,
+  "warning"
+);
+    return true;
+  }
+  return false;
+}
+
 
 function vanishSoloUpstairs() {
   
@@ -2880,7 +3378,7 @@ function vanishSoloUpstairs() {
       const solo = here[0];
       solo.alive = false;
       solo.deathType = "missing";
-      logLine(`>> [SYSTEM] ${solo.name}은(는) ${roomLabel(roomKey)}에 혼자 남겨진 순간, 신호가 끊겼습니다. (실종)`, "warning");
+      logLine(`>> [SYSTEM] ${solo.name}은(는) ${roomLabel(roomKey)}에 혼자 남겨진 순간, 그의 모습은 다시 볼 수 없었습니다. (실종)`, "warning");
     }
   }
 }
@@ -2907,7 +3405,7 @@ async function choiceKnock(c) {
   }
 
   if (ans === 3) {
-    logLine(`[ADMIN] "…들어오세요."`, "system");
+    logLine(`[ADMIN] "금일은 기분이 괜찮습니다, 도와드리죠."`, "system");
     const good = chance(0.55 + (c.luckScore / 100) * 0.2);
 
     if (good) {
@@ -3026,6 +3524,14 @@ async function choiceRoofPlant(c) {
     logLine(`>> [SYSTEM] ${c.name}의 모습은 더이상 볼 수 없었습니다.`, "warning");
   }
 }
+function getRoofEventChance() {
+  return 0.75; 
+}
+
+function getBaseEventChance() {
+  return 0.18;
+}
+
 
 async function runDailyChoices() {
   const alive = aliveChars();
@@ -3074,6 +3580,7 @@ async function nextDay() {
     }
 
     renderDayHeader();
+    logDayDivider();
 
     if (isSunday()) {
       await runSundayMeeting();
@@ -3090,20 +3597,19 @@ async function nextDay() {
     
     await eventRumor();
     await tickBreakups();
-    await tickViolenceBySan();
 
     await runDailyChoices(); 
     
     await eventCoLocatedChat();
     await eventSocialTalks();
-
+    
+    await tickViolenceBySan();
+    tickNoMovementHungerByFlag();
     const after = snapshotLocs();
     tickNoMovementHunger(before, after);
 
     renderCards();
     renderLocationTerminal();
-
-    
     if (endIfAllDead()) return;
 
   } catch (err) {
@@ -3178,7 +3684,6 @@ function prepareExecutionScreen() {
   const cand = ids.map(id => state.chars.find(c => c.id === id)).filter(Boolean);
   
   const soft = (state.initialCount ?? aliveChars().length) <= 5; 
-
 
   wrap.innerHTML = `
     <h1 class="blood-title">JUDGMENT DAY</h1>
@@ -3349,7 +3854,8 @@ function showEnding(success) {
   } else {
     box.innerHTML = `
       <h1>BAD ENDING</h1>
-      <p>세상밖에 다시 도달한 자는 없었다. 마치 현실같고 꿈같던 것. 무엇의 경계였까.</p>
+      <p>아직 혼자서는 이룰 수 없다</p>
+      <p>영원히 아이들은 깰 수 없는 꿈 속으로</p>
       <button class="btn-restart btn-primary">재시작</button>
     `;
   }
@@ -3406,7 +3912,6 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
-
 
 
 
