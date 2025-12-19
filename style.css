@@ -94,6 +94,12 @@ button {
 .btn-io:hover {
     background: #222; color: #fff; border-color: #fff;
 }
+.log.dayhead{
+  color:#fff;
+  font-weight:800;
+  letter-spacing:0.5px;
+}
+
 
 /* =========================================
    3. CUSTOM SLIDER
