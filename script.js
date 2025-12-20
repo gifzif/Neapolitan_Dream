@@ -367,9 +367,31 @@ function esc(s) {
   }[m]));
 }
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+function rand(arg) {
+  if (Array.isArray(arg)) {
+    return arg[Math.floor(Math.random() * arg.length)];
+  }  return Math.random();
+}
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function chance(p) { return Math.random() < p; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function chance(p) { return rand() < p; }
+function safeName(p) { return p?.name ?? "??"; }
+function isAlive(p) {
+  return p && !p.dead;
+}
+function getLocById(id) {
+  const p = state.chars.find(x => x.id === id); 
+  return (p?.loc ?? "").trim();
+}
+function addLog(text) {
+  state.logs = state.logs || [];
+  state.logs.push(text);
+}
+function applyMinorInjury(victim, kind) {
+  victim.injuries = victim.injuries || [];
+  victim.injuries.push({ kind, day: state.dayIndex ?? 0 });
+}
+
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -1286,6 +1308,33 @@ async function tickBreakups() {
 /* -------------------------------
   16) CORE TICKS
 --------------------------------*/
+
+
+function pickTwoCoLocated() {
+  const alive = state.chars.filter(p => p.alive); 
+
+  const groups = new Map();
+  for (const p of alive) {
+    const loc = (p.loc ?? "").trim();
+    if (!loc) continue;
+    if (!groups.has(loc)) groups.set(loc, []);
+    groups.get(loc).push(p);
+  }
+
+  const candidates = [...groups.values()].filter(arr => arr.length >= 2);
+  if (candidates.length === 0) return null;
+
+  const group = candidates[Math.floor(Math.random() * candidates.length)];
+  const a = group[Math.floor(Math.random() * group.length)];
+  let b = group[Math.floor(Math.random() * group.length)];
+  while (b.id === a.id && group.length > 1) {
+    b = group[Math.floor(Math.random() * group.length)];
+  }
+  if (a.id === b.id) return null;
+  return [a.id, b.id];
+}
+
+
 function isLoverRel(rk) { return rk === "lover" || rk === "couple"; }
 function isFamilyRel(rk) { return rk === "family"; }
 const VIOLENCE_OUTCOME = {
@@ -1301,6 +1350,27 @@ function isCouple(a, b) {
     r1 === "lover" || r1 === "couple" ||
     r2 === "lover" || r2 === "couple"
   );
+}
+
+function getLoc(id) {
+  
+  const p = state.chars?.find(x => x.id === id);
+  return (p?.loc ?? "").trim();
+}
+
+function sameLoc(aId, bId) {
+  const a = getLocById(aId);
+  const b = getLocById(bId);
+  if (!a || !b) return false;
+  return a === b;
+}
+
+function sameFloor(aId, bId) {
+  const a = getLoc(aId);
+  const b = getLoc(bId);
+  const fa = a.split("_")[0]; 
+  const fb = b.split("_")[0];
+  return fa && fb && fa === fb;
 }
 
 
@@ -1338,7 +1408,9 @@ function bulkSetAllRelationships(relKey) {
 }
 
 
-
+function hasTag(p, tag) {
+  return Array.isArray(p.tags) && p.tags.includes(tag);
+}
 function applyTagBias(base, p, rules = []) {
   let v = base;
   for (const r of rules) {
@@ -1596,6 +1668,8 @@ function checkSoloRule() {
 /* -------------------------------
   17) DAILY EVENTS
 --------------------------------*/
+
+
 
 function pickWeighted(items) {
   let total = 0;
@@ -2180,113 +2254,118 @@ async function applyViolenceInjury(target, sev, attackerName = "누군가") {
 }
 
 async function tickViolenceBySan() {
-  const alive = aliveChars();
+  if (!state?.chars || state.chars.length < 2) return; 
+  
+  const alive = state.chars.filter(isAlive);
   if (alive.length < 2) return;
 
-  const groups = {};
-  for (const c of alive) (groups[c.loc] ??= []).push(c);
+  const map = new Map();
+  for (const p of alive) {
+    const loc = (p.loc ?? "").trim();        
+    if (!map.has(loc)) map.set(loc, []);
+    map.get(loc).push(p);
+  }
+  const groups = [...map.entries()].filter(([loc, arr]) => arr.length >= 2);
+  if (groups.length === 0) return;
 
-  for (const loc in groups) {
-    const arr = groups[loc].filter(x => x.alive);
-    if (arr.length < 2) continue;
+  state._violenceCountToday = state._violenceCountToday ?? 0;
+  const MAX_VIOLENCE_PER_DAY = 2; 
+  if (state._violenceCountToday >= MAX_VIOLENCE_PER_DAY) return;
 
-    const attempts = (arr.length >= 4) ? 2 : 1;
+  const [loc, pool] = pick(groups);
 
-    for (let k = 0; k < attempts; k++) {
-      const attacker = rand(arr.filter(x => x.alive));
-      const target = rand(arr.filter(x => x.alive && x.id !== attacker?.id));
-      if (!attacker || !target) continue;
+  function sanity01(p) {
+    const s = Number.isFinite(p.sanity) ? p.sanity : 50;
+    return clamp(s, 0, 100) / 100;
+  }
+
+  function instability(p) {
+    return 1 - sanity01(p);
+  }
+
+  const attackerWeights = pool.map(p => {
+    let w = 0.2 + instability(p) * 1.4;
+    if (hasTag(p, "impulsive")) w += 0.35;
+    if (hasTag(p, "reckless")) w += 0.25;
+    if (hasTag(p, "coward")) w -= 0.15;    
+    if (hasTag(p, "calm")) w -= 0.20;      
+    w = Math.max(0.05, w);
+    return w;
+  });
+
+  function weightedPick(items, weights) {
+    const sum = weights.reduce((a,b)=>a+b,0);
+    let r = rand() * sum;
+    for (let i=0; i<items.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return items[i];
+    }
+    return items[items.length - 1];
+  }
+
+  const attacker = weightedPick(pool, attackerWeights);
+
+  const victims = pool.filter(p => p.id !== attacker.id);
+  if (victims.length === 0) return;
+  const victim = pick(victims);
+
+  if (!sameLoc(attacker.id, victim.id)) return;
+
+  let base = 0.08; // 기본 8%
+  base += instability(attacker) * 0.35; 
+  base += instability(victim) * 0.10;
+
+  const luckA = Number.isFinite(attacker.luck) ? attacker.luck : 50;
+  base -= (clamp(luckA, 0, 100) - 50) / 100 * 0.06; 
 
   
-      let p = violenceChanceFor(attacker, target);
+  if (hasTag(attacker, "paranoid")) base += 0.05;
+  if (hasTag(attacker, "logical")) base -= 0.03;
+  if (hasTag(attacker, "kind")) base -= 0.05;
+  const pViolence = clamp(base, 0.02, 0.65);
 
-      const couple = isCouple(attacker, target);
+  if (!chance(pViolence)) return;
 
-    
-      if (couple) {
-        p *= 0.8; 
-      }
+  const severityRoll =
+    rand()
+    + instability(attacker) * 0.35
+    - (clamp(luckA, 0, 100) / 100) * 0.10;
 
+  let severity = "minor"; 
+  if (severityRoll > 0.95) severity = "major";
 
-      const mediators = arr.filter(c =>
-        c.tagKey === "logical" &&
-        c.id !== attacker.id &&
-        c.id !== target.id &&
-        c.alive
-      );
+ state._violenceCountToday++;
 
-      const medP = couple ? 0.55 : 0.40;
+  const lineMinor = [
+    `${safeName(attacker)}(이)가 ${safeName(victim)}에게 시비를 걸었다. (${loc})`,
+    `${safeName(attacker)}(이)가 ${safeName(victim)}의 어깨를 밀쳤다. (${loc})`,
+    `${safeName(victim)}의 팔에 긁힌 상처가 났다… (${loc})`,
+    `${safeName(attacker)}(이)가 소리를 질렀고, ${safeName(victim)}(이)가 움찔했다. (${loc})`,
+  ];
 
-      if (mediators.length && chance(medP)) {
-        const m = rand(mediators);
-        logLine(`${m.name}: "지금 이건 감정적인 반응이야. 멈춰."`, "event");
+  const lineMajor = [
+    `[VIOLENCE] ${safeName(attacker)}(이)가 ${safeName(victim)}를 심하게 폭행했다. (${loc})`,
+    `[VIOLENCE] ${safeName(victim)}의 몸에서 피가 났다. (${loc})`,
+    `[VIOLENCE] ${safeName(attacker)}(이)가 ${safeName(victim)}를 바닥에 넘어뜨렸다. (${loc})`,
+  ];
 
-        applySanHeal(attacker, 3);
+  addLog(severity === "minor" ? pick(lineMinor) : pick(lineMajor));
 
-        applyTrust(attacker, +1);
-
-        applyTrust(m, +1);
-
-        continue;
-      }
-
-      if (!chance(p)) continue;
-
-      const line = pickViolenceLine(attacker, target);
-      await logGlitchLine("", `${attacker.name}: "${glitchText(line, 0.25)}"`, "event", 0.30);
-      await sleep(120);
-      logLine(`${target.name}: "${pickVictimLine(attacker, target)}"`, "event");
-      await sleep(120);
-
-      const outcome = resolveViolenceOutcome(attacker, target);
-
-      if (outcome === "none") {
-        logLine(`>> [SYSTEM] 위협적인 행동이 있었지만 큰 일은 없었습니다.`, "system");
-        applyTrust(attacker, -2);
-        applyTrust(target, -2);
-
-     
-        if (couple) {
-          applyTrust(attacker, -3);
-          applyTrust(target, -3);
-        }
-        continue;
-      }
-
-      if (outcome === "death") {
-        target.alive = false;
-        target.deathType = "missing";
-
-        logLine(`>> [WARNING] ${attacker.name}이(가) ${target.name}의 목숨을 끊었습니다.`, "warning");
-
-        applyTrust(attacker, -10);
-
-        if (couple) {
-          applyTrust(attacker, -20);
-          
-          applyTrust(target, -20);
-        }
-
-        renderCards(); renderLocationTerminal();
-        if (endIfAllDead()) return;
-        continue;
-      }
-
-      const sev = resolveInjurySeverity(attacker, target);
-      logLine(`>> [WARNING] 폭력 발생: ${target.name} (${sev})`, "warning");
-      await applyViolenceInjury(target, sev, attacker.name);
-
-      if (couple) {
-        applyTrust(attacker, -12);
-        applyTrust(target, -12);
-      }
-
-      renderCards(); renderLocationTerminal();
-      if (endIfAllDead()) return;
-    }
+  if (severity === "minor") {
+    const kind = pick(["bruise", "cut", "sprain"]);
+    applyMinorInjury(victim, kind);
+    victim.sanity = clamp((victim.sanity ?? 50) - 3, 0, 100);
+    attacker.sanity = clamp((attacker.sanity ?? 50) - 1, 0, 100);
+  } else {
+    const kind = pick(["deep_cut", "fracture", "bleeding"]);
+    applyMinorInjury(victim, kind);
+    victim.sanity = clamp((victim.sanity ?? 50) - 9, 0, 100);
+    attacker.sanity = clamp((attacker.sanity ?? 50) - 4, 0, 100);
   }
-}
+if (Number.isFinite(attacker.trust)) attacker.trust = clamp(attacker.trust - 2, -100, 100);
+  if (Number.isFinite(victim.trust)) victim.trust = clamp(victim.trust - 4, -100, 100);
 
+}
 function pickVictimLine(attacker, target) {
   const base = [
     "아니, 지금 무슨—",
@@ -2843,6 +2922,13 @@ async function eventPostMoveUnease(group, target) {
   }
 }
 async function eventCoLocatedChat() {
+  const pair = pickTwoCoLocated();
+  if (!pair) return;
+
+  const [aId, bId] = pair;
+
+  if (!sameLoc(aId, bId)) return;
+
   if (!chance(0.55)) return;
 
   const alive = aliveChars();
@@ -3078,8 +3164,11 @@ async function eventPlayroomGirl(c) {
   }
 
   await logGlitchLine("??? : ", `고마워, 근데 그거 알아? 너는 나를 볼 수 없어.`, "system", 0.30);
+  await logGlitchLine("??? : ", `고마워, 근데 그거 알아? 너는 나를 볼 수 없어.`, "system", 0.30);
+  await logGlitchLine("??? : ", `고마워, 근데 그거 알아? 너는 나를 볼 수 없어.`, "system", 0.30);
+  await logGlitchLine("??? : ", `고마워, 근데 그거 알아? 너는 나를 볼 수 없어.`, "system", 0.30);
       
-  logLine(`>> [SYSTEM] 그녀가 웃는다. 너무… 기쁘게.`, "event");
+  logLine(`>> [SYSTEM] 그녀를 만족시킨? 걸지도 모르겠습니다.`, "event");
   aliveChars().forEach(x => applyTrust(x, +6));
   applySanLoss(c, 8); 
 }
@@ -3238,7 +3327,7 @@ async function choiceMoveGroup() {
   const stuck = group.filter(x => isImmobile(x));
 
   if (!movable.length) {
-    stuck.forEach(s => logLine(`${s.name}: "미안, 같이 가고 싶어도 움직이질 않네."`, "warning"));
+    stuck.forEach(s => logLine(`${s.name}: "가고 싶어도 몸이 움직이질 않네."`, "warning"));
     return;
   }
 
@@ -3477,6 +3566,13 @@ async function choicePlayroom(c) {
   logLine(`${c.name}: "누구야?"`, "warning");
   const dmg = 8 + Math.floor(Math.random() * 20);
   await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
+  await logGlitchLine(">>", `??? : 있지, 나랑 놀지 않을래? 나랑 숨바꼭질도 하고 춤도 추고 하루종일 놀자!`, "warning", 0.70);
   c.hp = clamp(c.hp - dmg, 0, 100);
   applySanLoss(c, 8);
   logLine(`>> [SYSTEM] ${c.name}의 체력이 소모되었습니다. (HP -${dmg})`, "warning");
@@ -3555,12 +3651,6 @@ async function runDailyChoices() {
 
 /* -------------------------------
   18) SUNDAY FLOW & EXECUTION (FIXED)
---------------------------------*/
-/* -------------------------------
-   [FIXED] 외부 미출입 규칙 (연속 4일 체크)
-   - 연속으로 안 나갈 때만 카운트 증가
-   - 하루라도 나가면 즉시 0으로 초기화
-   - 2일, 3일차에 경고 로그 출력
 --------------------------------*/
 
 
@@ -3912,7 +4002,6 @@ document.addEventListener("DOMContentLoaded", () => {
   showScreen("#screen-intro");
 
 });
-
 
 
 
