@@ -1760,6 +1760,7 @@ async function enter_any_1f(c) {
       logLine(`>> [SYSTEM] 치료 성공 (HP +${healHp}, SAN +${healSan})`, "event");
     } else {
       logLine(`>> [SYSTEM] 관리인이 ${c.name}의 손목을 잡았다.`, "warning");
+      logLine(`>> [ADMIN] 하하, 오늘은 영 기분이 안 좋아서요.`, "event");
       
       const wrist = chance(0.5) ? "leftWrist" : "rightWrist";
       await removeBodyPart(c, wrist, { hpDmg: 22, sanAmt: 14, reason: "절단" });
@@ -1807,7 +1808,7 @@ async function enter_2f_living(c) {
   await eventLivingRoomSky(c);
   await eventFakeCaretakerOn2F(c);
   await eventWhiteDoorOn2F(c);
-  await eventDeadFriendTalkOnLiving(c);
+  await eventDeadFriendInLivingRoom(c);
 }
 
 
@@ -1859,7 +1860,6 @@ async function eventBlackDoorOnRoof(c) {
 function pickMerchantTypeByLuck(luckScore = 50) {
   const r = Math.random();
 
-  // luckScore(1~100) 기반으로 가중치 (좋은 운일수록 레드↑, 블랙/옐로↓)
   const t = clamp((luckScore - 50) / 50, -1, 1); // -1~1
 
   const pRed   = clamp(0.25 + 0.20 * t, 0.10, 0.50);
@@ -1879,7 +1879,7 @@ function pickMerchantTypeByLuck(luckScore = 50) {
 async function eventRoofMerchant(c) {
   if (!c?.alive) return;
   if (c.loc !== "4f_roof") return;
-  if (!chance(0.2)) return; // “가끔” 빈도
+  if (!chance(0.65)) return; 
 
   await logGlitchLine(">>", `옥상에 상인이 돌아다닌다.`, "warning", 0.35);
 
@@ -1971,34 +1971,48 @@ async function eventRoofMerchant(c) {
   c.deathType = "missing";
   renderCards(); renderLocationTerminal(); endIfAllDead();
 }
-async function eventDeadFriendTalkOnLiving(c) {
-  if (!c?.alive) return;
-  if (c.loc !== "2f_living") return;
-  if (!chance(0.18)) return; 
+// ===============================
+// EVENT 26: DEAD FRIEND IN LIVING ROOM
+// ===============================
 
-  const dead = state.chars.filter(x => !x.alive);
-  if (!dead.length) return;
+function eventDeadFriendInLivingRoom() {
+  const playerLoc = state.playerLoc || state.chars[0]?.loc;
+  if (playerLoc !== "1f_living") return;
 
-  const d = rand(dead);
-  await logGlitchLine(">>", `${d.name}: "${glitchText("…너 아직도 여기 있네.", 0.35)}"`, "warning", 0.35);
+  const dead = state.chars.filter(c => !c.alive);
+  if (dead.length === 0) return;
 
-  const luck = (c.luckScore ?? 50) / 100;
-  const goodP = clamp(0.35 + luck * 0.35, 0.25, 0.75);
-  if (chance(goodP)) {
-    logLine(`>> [SYSTEM] ${c.name}의 정신이 잠깐 안정된다.`, "event");
-    applySanHeal(c, 14);
+  if (!chance(0.58)) return; 
+
+  const ghost = rand(dead);
+
+  logLine(
+    `>> [EVENT] ${ghost.name}의 목소리가 거실에서 들려왔다.`,
+    "event"
+  );
+  const luck = Number.isFinite(state.playerLuck)
+    ? state.playerLuck
+    : rand() * 100;
+
+  if (luck >= 50) {
+    logGlitchLine(`${ghost.name}: `, `아직 끝난 게 아니야. 네 스스로를 믿어.`, "system", 0.80);
+    
+    state.playerSan = clamp(state.playerSan + 8, 0, 100);
   } else {
-    logLine(`>> [SYSTEM] ${c.name}의 정신이 무너진다. (SAN -50)`, "warning");
-    applySanLoss(c, 50);
+    logGlitchLine(`${ghost.name}: `, `넌 왜 아직도 살아있는거야?`, "system", 0.80);
+    
+    
+    state.playerSan = clamp(state.playerSan - 50, 0, 100);
   }
 }
+
 
 
 
 async function eventLivingRoomSky(c) {
   if (!c?.alive) return;
   if (c.loc !== "2f_living") return;
-  if (!chance(0.45)) return; 
+  if (!chance(0.55)) return; 
 
  
   if (chance(0.5)) {
@@ -2560,7 +2574,7 @@ async function eventSundayNoSleep() {
 async function eventWhiteDoorOn2F(c) {
   if (!c?.alive) return;
   if (c.loc !== "2f_living") return;
-  if (!chance(0.12)) return;
+  if (!chance(0.36)) return;
 
   logLine(`>> [SYSTEM] 2층 거실에 '흰색 문'이 열렸다.`, "warning");
 
@@ -2619,7 +2633,7 @@ async function eventRestRoomSleepingBags(c) {
   if (!c?.alive) return;
   if (c.loc !== "1f_rest") return;
   if (state.flags.restRoomSafe) return;
-  if (!chance(0.16)) return;
+  if (!chance(0.30)) return;
 
   const count = 1 + Math.floor(Math.random() * 4);
 
@@ -2644,6 +2658,7 @@ async function eventRestRoomSleepingBags(c) {
       const from = c.loc;
       c.loc = "1f_grass";
       await onEnterRoom(c,from,"1f_grass");
+      await removeRandomBodyPart(target, { hpDmg: 20, sanAmt: 10, reason: "절단" });
       logLine(`>> [SYSTEM] ${c.name} 이동: ${roomLabel("1f_grass")}`, "event");
       applySanLoss(c, 10);
       return;
@@ -2671,7 +2686,7 @@ async function eventRestRoomSleepingBags(c) {
 async function eventNurseOn3FMed(c) {
   if (!c?.alive) return;
   if (c.loc !== "3f_med") return;
-  if (!chance(0.18)) return;
+  if (!chance(0.30)) return;
 
   logLine(`>> [SYSTEM] 보건실에 '간호사'로 보이는 여성이 있다.`, "warning");
 
@@ -2716,7 +2731,7 @@ async function eventNurseOn3FMed(c) {
 
 async function eventSuddenAnxiety(c) {
   if (!c?.alive) return;
-  if (!chance(0.10)) return;
+  if (!chance(0.40)) return;
 
   logLine(`>> [SYSTEM] ${c.name}의 가슴이 미친 듯이 뛰기 시작한다.`, "warning");
 
@@ -2747,7 +2762,7 @@ async function eventSuddenAnxiety(c) {
 
 async function eventNausea(c) {
   if (!c?.alive) return;
-  if (!chance(0.09)) return;
+  if (!chance(0.30)) return;
 
   logLine(`>> [SYSTEM] ${c.name}은(는) 갑작스런 멀미를 느낀다.`, "warning");
 
@@ -2780,7 +2795,7 @@ async function eventNausea(c) {
 
 async function eventPhoneImpulse(c) {
   if (!c?.alive) return;
-  if (!chance(0.08)) return;
+  if (!chance(0.40)) return;
 
   logLine(`>> [SYSTEM] ${c.name}은(는) 핸드폰을 쓰고 싶은 충동에 휩싸인다.`, "warning");
 
@@ -2832,7 +2847,7 @@ async function eventPhoneImpulse(c) {
 function tickAnkleTheft() {
   const alive = aliveChars();
   if (!alive.length) return;
-  if (!chance(0.10)) return;
+  if (!chance(0.30)) return;
 
   const c = rand(alive);
   const part = pickExistingPart(c, ["leftAnkle","rightAnkle"]);
@@ -2850,7 +2865,7 @@ function tickAnkleTheft() {
 
 async function eventCheckLegs(c) {
   if (!c?.alive) return;
-  if (!chance(0.12)) return;
+  if (!chance(0.32)) return;
 
   const ans = await askChoice({
     title: "[CHOICE]",
@@ -3206,9 +3221,12 @@ async function runOneChoiceEvent(c) {
   for (let i = 0; i < moveWeight; i++) pool.push(choiceMoveGroup);
 
   pool.push(choiceOutside);
-  if (chance(0.20)) pool.push(choiceSleep);
+  if (chance(0.10)) pool.push(choiceSleep);
 
-  if (c.loc === "3f_admin") pool.push(choiceKnock);
+  if (c.loc === "3f_admin")  {
+  const knockWeight = 3; 
+  for (let i = 0; i < knockWeight; i++) pool.push(choiceKnock);
+}
   if (c.loc === "3f_play")  pool.push(choicePlayroom);
   if (c.loc === "4f_roof")  pool.push(choiceRoofPlant);
 
@@ -3682,6 +3700,7 @@ async function nextDay() {
     
     rollWeatherForToday(false);
     tickAfterOutside();
+    eventDeadFriendInLivingRoom(); 
     tickSanityStages();
     checkSoloRule();
     
@@ -3689,6 +3708,7 @@ async function nextDay() {
     await tickBreakups();
 
     await runDailyChoices(); 
+    
     
     await eventCoLocatedChat();
     await eventSocialTalks();
